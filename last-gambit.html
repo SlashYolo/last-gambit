@@ -7,15 +7,15 @@
 <meta name="description" content="Шахматный рогалик на задачах Lichess: мат за лимит ходов, прокачка фигур, реликвии и лавка.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;700&family=Press+Start+2P&display=swap">
-<style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tiny5&family=Press+Start+2P&display=swap">
+<style>/* tiny5-sized */
 /* Layout: full-screen pixel-3D board in the middle, chunky card-table HUD columns left/right, overlay screens for select / shop / results */
 :root{
   color-scheme: dark;
   --ink:#0b0e13; --panel:#1a2430; --panel2:#243344; --line:#06080b;
   --text:#f2ead6; --muted:#93a6b4;
   --red:#e8483b; --red-d:#9b2230; --blue:#2f8fe0; --gold:#f3b53c; --gold-d:#3a2c10; --green:#3fae6a; --violet:#8a5cd6;
-  --f-ui:'Pixelify Sans', ui-monospace, Menlo, monospace;
+  --f-ui:'Tiny5', ui-monospace, Menlo, monospace;
   --f-head:'Press Start 2P', ui-monospace, Menlo, monospace;
 }
 html,body{height:100%;margin:0;background:var(--ink);color:var(--text);overflow:hidden;font-family:var(--f-ui);font-size:16px;-webkit-font-smoothing:none}
@@ -28,15 +28,15 @@ html,body{height:100%;margin:0;background:var(--ink);color:var(--text);overflow:
 .blk{background:var(--panel);border:3px solid var(--line);border-radius:10px;box-shadow:0 4px 0 var(--line);padding:10px 12px}
 .eyebrow,.lbl{font-family:var(--f-head);font-size:8px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;line-height:1.6}
 .hname{font-family:var(--f-head);font-size:12px;line-height:1.5;margin-top:6px;text-wrap:balance}
-.hmod{margin-top:6px;font-size:15px;color:#ffb0a6;line-height:1.25}
+.hmod{margin-top:6px;font-size:16px;color:#ffb0a6;line-height:1.25}
 .hmate{margin-top:6px;font-family:var(--f-head);font-size:9px;line-height:1.6;color:var(--gold)}
-.goal{font-size:15px;line-height:1.3;color:var(--muted)}
+.goal{font-size:16px;line-height:1.3;color:var(--muted)}
 .goal b{color:var(--text);font-weight:700}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .stat{border:3px solid var(--line);border-radius:10px;box-shadow:0 4px 0 var(--line);padding:8px 8px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
 .stat span{font-family:var(--f-head);font-size:7px;letter-spacing:.1em;text-transform:uppercase;opacity:.9}
 .stat b{font-family:var(--f-head);font-size:22px;line-height:1.25;font-variant-numeric:tabular-nums}
-.stat small{font-size:13px;opacity:.85}
+.stat small{font-size:14px;opacity:.85}
 .stat.moves{background:var(--red)}
 .stat.moves.low{animation:throb .6s ease-in-out infinite}
 @keyframes throb{50%{filter:brightness(1.3)}}
@@ -66,16 +66,16 @@ button.slot:hover{transform:translateY(-2px) rotate(-3deg)}
 .pc-head{display:flex;gap:10px;align-items:center}
 .pc-head .g{font-size:40px}
 .pc-name{font-family:var(--f-head);font-size:11px;line-height:1.5}
-.pc-type{font-size:14px;color:var(--muted)}
+.pc-type{font-size:15px;color:var(--muted)}
 .hearts{display:flex;gap:2px;margin-top:4px}
 .hearts img{width:16px;height:16px;image-rendering:pixelated}
-.mvlist{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:1.25}
+.mvlist{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:15px;line-height:1.25}
 .mvlist li{display:flex;gap:6px}
 .mvlist li::before{content:"";flex:0 0 8px;height:8px;margin-top:5px;background:var(--blue);border:2px solid var(--line)}
 .mvlist li.up::before{background:var(--gold)}
 .mvlist li.perk::before{background:var(--violet)}
 .mvlist li.bad::before{background:#9fdcff}
-.coach-text{display:flex;flex-direction:column;gap:6px;margin:6px 0 10px;font-size:14px;line-height:1.35}
+.coach-text{display:flex;flex-direction:column;gap:6px;margin:6px 0 10px;font-size:15px;line-height:1.35}
 .coach-text p{margin:0}
 .coach-text p.hint{color:#bfefff;background:#173040;border:2px solid var(--line);border-radius:6px;padding:6px}
 .coach-text p.warn{color:#ffb0a6}
@@ -83,13 +83,13 @@ button.slot:hover{transform:translateY(-2px) rotate(-3deg)}
 .coach-text b{color:var(--gold)}
 .coach .btns{flex-wrap:wrap}
 #hudR{width:268px}
-.muted{color:var(--muted);font-size:14px;line-height:1.35;margin:6px 0 0}
+.muted{color:var(--muted);font-size:15px;line-height:1.35;margin:6px 0 0}
 .army{display:flex;flex-direction:column;gap:3px;margin-top:8px}
 .arm{display:flex;align-items:center;gap:8px;padding:2px 6px;border-radius:6px;background:var(--panel2);border:2px solid var(--line);cursor:pointer;color:inherit;font:inherit;text-align:left;width:100%}
 .arm:hover{filter:brightness(1.15)}
 .arm.dead{opacity:.4}
 .arm .g{font-size:20px;width:22px;text-align:center}
-.arm .an{flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arm .an{flex:1;min-width:0;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .arm .tags{display:flex;gap:3px}
 .tag{font-family:var(--f-head);font-size:7px;padding:3px 4px;border-radius:4px;border:2px solid var(--line);background:var(--gold);color:#2a1c05}
 .tag.hp{background:var(--red);color:#fff}
@@ -100,7 +100,7 @@ button.slot:hover{transform:translateY(-2px) rotate(-3deg)}
 #status.target{background:var(--violet)}
 #toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:30;font-family:var(--f-head);font-size:10px;line-height:1.5;padding:10px 14px;background:var(--gold);color:#2a1c05;border:3px solid var(--line);border-radius:10px;box-shadow:0 4px 0 var(--line);pointer-events:none;max-width:calc(100% - 32px);text-align:center}
 #peekBack{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:25}
-#tip{position:fixed;z-index:40;max-width:240px;background:var(--panel);border:3px solid var(--line);border-radius:8px;box-shadow:0 4px 0 var(--line);padding:8px 10px;font-size:14px;line-height:1.3;pointer-events:none}
+#tip{position:fixed;z-index:40;max-width:240px;background:var(--panel);border:3px solid var(--line);border-radius:8px;box-shadow:0 4px 0 var(--line);padding:8px 10px;font-size:15px;line-height:1.3;pointer-events:none}
 #tip b{display:block;font-family:var(--f-head);font-size:9px;line-height:1.5;margin-bottom:4px;color:var(--gold)}
 .float{position:fixed;z-index:15;font-family:var(--f-head);font-size:12px;pointer-events:none;text-shadow:0 2px 0 #000,2px 0 0 #000,-2px 0 0 #000,0 -2px 0 #000;animation:rise 1.2s ease-out forwards;transform:translate(-50%,-50%);white-space:nowrap}
 @keyframes rise{0%{opacity:0;margin-top:8px}15%{opacity:1}100%{opacity:0;margin-top:-56px}}
@@ -121,15 +121,15 @@ button.slot:hover{transform:translateY(-2px) rotate(-3deg)}
 .card .art .g{font-size:52px}
 .card .art img{width:48px;height:48px;image-rendering:pixelated}
 .card h3{font-family:var(--f-head);font-size:10px;line-height:1.5;margin:0;text-wrap:balance}
-.card .for{font-size:14px;color:var(--gold)}
-.card p{margin:0;font-size:14px;line-height:1.3;color:var(--muted);flex:1}
+.card .for{font-size:15px;color:var(--gold)}
+.card p{margin:0;font-size:15px;line-height:1.3;color:var(--muted);flex:1}
 .card .buy{margin-top:auto}
 .card.sold{opacity:.45;animation:none}
 .blind{width:206px}
 .blind.cur{width:252px;border-color:var(--gold);box-shadow:0 6px 0 var(--line),0 0 0 3px var(--line)}
 .blind.done{opacity:.5;animation:none}
 .blind.k0 .band{background:var(--blue)} .blind.k1 .band{background:#d6802a} .blind.k2 .band{background:var(--red)}
-.kv{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:15px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:16px}
 .kv span{color:var(--muted)}
 .kv b{font-family:var(--f-head);font-size:11px;font-variant-numeric:tabular-nums}
 .kv b.gold{color:var(--gold)}
@@ -140,13 +140,13 @@ button.slot:hover{transform:translateY(-2px) rotate(-3deg)}
 .mini i.fz{box-shadow:inset 0 0 0 2px #9fdcff}
 .mini i.lm{background-image:linear-gradient(rgba(243,211,92,.55),rgba(243,211,92,.55))}
 .mini i.hp2{box-shadow:inset 0 0 0 2px var(--red)}
-.boss-mod{font-size:14px;line-height:1.3;color:#ffb0a6;background:#2a1418;border:2px solid var(--line);border-radius:6px;padding:6px}
+.boss-mod{font-size:15px;line-height:1.3;color:#ffb0a6;background:#2a1418;border:2px solid var(--line);border-radius:6px;padding:6px}
 .row-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .shop-cols{display:flex;gap:28px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
 .shop-col{display:flex;flex-direction:column;gap:10px;align-items:center}
 .goldbig{font-family:var(--f-head);font-size:16px;color:var(--gold);background:var(--gold-d);border:3px solid var(--line);border-radius:10px;padding:8px 14px;box-shadow:0 4px 0 var(--line)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:760px}
-.chip{display:flex;align-items:center;gap:5px;padding:4px 8px;background:var(--panel);border:2px solid var(--line);border-radius:6px;font-size:14px}
+.chip{display:flex;align-items:center;gap:5px;padding:4px 8px;background:var(--panel);border:2px solid var(--line);border-radius:6px;font-size:15px}
 .chip .g{font-size:18px}
 .tally{width:min(420px,100%);background:var(--panel);border:3px solid var(--line);border-radius:12px;box-shadow:0 6px 0 var(--line);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .tally div{display:flex;justify-content:space-between;gap:10px;font-size:16px;opacity:0;animation:pop .35s ease-out forwards}
@@ -163,7 +163,7 @@ button.slot:hover{transform:translateY(-2px) rotate(-3deg)}
 @keyframes wob{50%{transform:rotate(-1.5deg) translateY(-3px)}}
 .rules{width:min(620px,100%);background:var(--panel);border:3px solid var(--line);border-radius:12px;box-shadow:0 6px 0 var(--line);padding:14px 18px}
 .rules ol{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:16px;line-height:1.35}
-.credit{font-size:13px;color:var(--muted);text-align:center;margin:0}
+.credit{font-size:14px;color:var(--muted);text-align:center;margin:0}
 .best{font-family:var(--f-head);font-size:9px;color:var(--muted);line-height:1.6;text-align:center}
 @media (max-width:820px){
   #hudL{top:8px;left:8px;right:8px;bottom:auto;width:auto;flex-direction:row;flex-wrap:wrap;gap:6px;max-height:36vh}
