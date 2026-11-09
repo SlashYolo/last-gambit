@@ -1,0 +1,26 @@
+[package]
+name = "last-gambit"
+version = "0.4.0"
+description = "The Last Gambit — a chess roguelike built on real mate puzzles"
+authors = ["The Last Gambit authors"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "last_gambit_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-store = "2"
+
+# Small release binaries: size-optimised, link-time optimised, symbols stripped.
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

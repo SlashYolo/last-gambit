@@ -1,0 +1,43 @@
+/* Strings for the splash, main menu, progress, achievements and settings screens. */
+export const META_STR = {
+  ru: {
+    splash_tag: 'шахматный рогалик', splash_press: 'Нажмите любую клавишу',
+    m_continue: 'Продолжить', m_continue_sub: 'Анте {a} · побед {w} · ${g}', m_continue_train: 'Обучение · анте {a}',
+    m_new: 'Новый забег', m_train: 'Обучение', m_how: 'Как играть', m_ach: 'Достижения', m_stats: 'Статистика',
+    m_settings: 'Настройки', m_quit: 'Выход', m_menu: 'Меню', m_back: 'Назад',
+    m_progress: 'Рекорд: анте {a} · побед {w} · решено задач {s} · достижений {n}/{N}',
+    m_progress_new: 'Первый забег впереди. Обучение поможет разобраться.',
+    m_confirm_new: 'Текущий забег будет потерян. Нажмите ещё раз, чтобы начать новый.',
+    m_saved_note: 'Забег сохраняется автоматически. Если выйти посреди задачи, она начнётся заново.',
+    ach_title: 'Достижения', ach_count: 'Открыто {n} из {N}', ach_unlocked: 'Достижение открыто!', ach_locked: 'Не открыто', ach_training: 'в обучении',
+    st_title: 'Статистика',
+    st_runs: 'Забегов начато', st_best_ante: 'Лучший анте', st_best_wins: 'Побед за один забег', st_solved: 'Решено задач в забегах',
+    st_mates: 'Матов', st_stales: 'Патов', st_exact: 'Точных решений', st_gold: 'Золота заработано', st_promos: 'Пешек превращено в ферзя',
+    st_bosses: 'Боссов побеждено', st_train: 'Решено задач в обучении', st_hints: 'Подсказок взято', st_time: 'Время в партиях', st_time_v: '{h} ч {m} мин',
+    st_note: 'Обучение не влияет на рекорды и достижения забега.',
+    set_title: 'Настройки', set_lang: 'Язык', set_sound: 'Звук', set_volume: 'Громкость', set_badges: 'Значки над фигурами',
+    set_colors: 'Цвета фигур', set_colors_type: 'По типу', set_colors_classic: 'Классика', set_crt: 'Эффект старого экрана',
+    set_crt_note: 'Изгиб экрана и строки развёртки', set_full: 'Полный экран', set_reset: 'Сбросить прогресс',
+    set_reset_sure: 'Точно? Нажмите ещё раз', set_reset_done: 'Прогресс сброшен', on: 'Вкл', off: 'Выкл'
+  },
+  en: {
+    splash_tag: 'a chess roguelike', splash_press: 'Press any key',
+    m_continue: 'Continue', m_continue_sub: 'Ante {a} · {w} wins · ${g}', m_continue_train: 'Training · ante {a}',
+    m_new: 'New run', m_train: 'Training', m_how: 'How to play', m_ach: 'Achievements', m_stats: 'Statistics',
+    m_settings: 'Settings', m_quit: 'Quit', m_menu: 'Menu', m_back: 'Back',
+    m_progress: 'Best: ante {a} · {w} wins · {s} puzzles solved · {n}/{N} achievements',
+    m_progress_new: 'Your first run is ahead. Training mode will help you get started.',
+    m_confirm_new: 'Your current run will be lost. Press again to start a new one.',
+    m_saved_note: 'Runs are saved automatically. If you quit mid-puzzle, that puzzle restarts.',
+    ach_title: 'Achievements', ach_count: '{n} of {N} unlocked', ach_unlocked: 'Achievement unlocked!', ach_locked: 'Locked', ach_training: 'in training',
+    st_title: 'Statistics',
+    st_runs: 'Runs started', st_best_ante: 'Best ante', st_best_wins: 'Most wins in a run', st_solved: 'Puzzles solved in runs',
+    st_mates: 'Checkmates', st_stales: 'Stalemates', st_exact: 'Exact solutions', st_gold: 'Gold earned', st_promos: 'Pawns promoted',
+    st_bosses: 'Bosses defeated', st_train: 'Puzzles solved in training', st_hints: 'Hints taken', st_time: 'Time in puzzles', st_time_v: '{h} h {m} min',
+    st_note: 'Training does not affect run records or achievements.',
+    set_title: 'Settings', set_lang: 'Language', set_sound: 'Sound', set_volume: 'Volume', set_badges: 'Badges above pieces',
+    set_colors: 'Piece colors', set_colors_type: 'By type', set_colors_classic: 'Classic', set_crt: 'Retro screen effect',
+    set_crt_note: 'Screen curvature and scanlines', set_full: 'Fullscreen', set_reset: 'Reset progress',
+    set_reset_sure: 'Sure? Press again', set_reset_done: 'Progress reset', on: 'On', off: 'Off'
+  }
+};

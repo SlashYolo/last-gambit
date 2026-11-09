@@ -4,11 +4,26 @@
 
 **Шахматный рогалик на настоящих задачах.** Ставьте мат за ограниченное число ходов, прокачивайте свои фигуры и играйте, пока не проиграете.
 
-[Как играть](#как-играть) · [Режимы](#режимы) · [Прокачка](#прокачка) · [Запуск](#запуск) · [English](#english)
+[Скачать](#скачать) · [Как играть](#как-играть) · [Режимы](#режимы) · [Прокачка](#прокачка) · [Достижения](#прогресс-и-достижения) · [Разработка](#разработка) · [English](#english)
 
-<img src="docs/title.png" alt="Главный экран: заголовок «Последний гамбит» над пиксельной 3D-доской" width="100%">
+<img src="docs/menu.png" alt="Главное меню: заголовок «Последний гамбит» над пиксельной 3D-доской" width="100%">
 
 </div>
+
+## Скачать
+
+Установщики лежат в разделе [Releases](../../releases/latest). Игра работает без интернета.
+
+| Система | Файл | Примерный размер |
+|---|---|---|
+| Windows 10/11 | `Last Gambit_x.y.z_x64-setup.exe` | ~5 МБ |
+| macOS (Apple Silicon) | `Last Gambit_x.y.z_aarch64.dmg` | ~7 МБ |
+| macOS (Intel) | `Last Gambit_x.y.z_x64.dmg` | ~7 МБ |
+| Linux | `.deb` (Ubuntu, Debian), `.rpm` (Fedora) или `.AppImage` | от ~5 МБ |
+
+На macOS при первом запуске система может предупредить о неизвестном разработчике: нажмите на приложение правой кнопкой мыши и выберите «Открыть».
+
+**Без установки:** скачайте `last-gambit.html` из релиза и откройте его двойным щелчком, или играйте в браузере на GitHub Pages по адресу `https://<ваш-ник>.github.io/<репозиторий>/` (включается в Settings → Pages → Source: GitHub Actions).
 
 ## Как играть
 
@@ -17,7 +32,9 @@
 3. **Поставьте мат или пат**, пока не кончились ходы. Компьютер защищается сам, а не по сценарию.
 4. **За победу вы получаете золото** и тратите его в лавке. Одно поражение заканчивает забег.
 
-<img src="docs/training.png" alt="Партия в режиме обучения: тренер справа объясняет ход ладьёй с шахом" width="100%">
+<img src="docs/training.png" alt="Партия в режиме обучения: у каждого типа фигур свой цвет, тренер справа объясняет ход" width="100%">
+
+**Свои и чужие фигуры видно сразу.** У каждого типа фигуры свой цвет: светлый оттенок — ваша фигура, тёмный — фигура противника. Например, салатовый слон ваш, тёмно-зелёный — вражеский. Под вашими фигурами светлое кольцо, под вражескими — красное. Если удобнее по-старому, есть классическая расцветка: светлые против красных.
 
 ## Режимы
 
@@ -42,6 +59,16 @@
 - **Реликвии** меняют правила: «Песочные часы» дают +2 хода в каждой задаче, «Перо феникса» один раз спасает от поражения, «Утренний кофе» делает первый ход бесплатным.
 - **Расходники** выручают в трудную минуту: «Лёд» замораживает фигуру врага, «Молот» разбивает его пешку, «Перемотка» отменяет ход.
 
+## Прогресс и достижения
+
+Забег сохраняется автоматически: закройте игру между задачами и продолжите с того же места из главного меню. Если выйти посреди задачи, она начнётся заново.
+
+В меню есть 25 достижений: от первого мата до анте 8, мата конём, спёртого мата и мата последним доступным ходом. Там же статистика: лучший анте, решённые задачи, точные решения, побеждённые боссы, время в партиях. Обучение не влияет на рекорды и достижения забега, у него свои два достижения.
+
+В настройках можно выбрать язык, громкость, расцветку фигур, значки над фигурами, полноэкранный режим и выключить эффект старого экрана.
+
+<img src="docs/achievements.png" alt="Экран достижений: открытые карточки подсвечены золотом" width="100%">
+
 ## Управление
 
 | Действие | Как |
@@ -51,17 +78,9 @@
 | Подсказка (обучение) | H |
 | Отменить ход (обучение) | Z |
 | Значки над фигурами | B |
+| Цвета: по типу или классика | C |
 
 Язык (русский или английский) переключается кнопкой на любом экране.
-
-## Запуск
-
-Вся игра — один файл `index.html`, сборка не нужна.
-
-- **На компьютере:** скачайте `index.html` и откройте его двойным щелчком.
-- **Через GitHub Pages:** включите Pages для ветки `main` (Settings → Pages), и игра откроется по адресу репозитория.
-
-При первом запуске нужен интернет, чтобы загрузить Three.js и шрифты.
 
 ## Задачи
 
@@ -75,6 +94,40 @@
 
 С каждым анте задачи берутся всё ближе к верху рейтинга, а за один забег задачи не повторяются.
 
+## Разработка
+
+Игра написана на JavaScript и Three.js, десктопная оболочка — [Tauri 2](https://tauri.app) на Rust. Нужны Node.js 22 и, для сборки приложения, Rust.
+
+```bash
+npm install
+npm run dev          # игра в браузере на http://localhost:1420
+npm test             # проверка движка и всех задач
+npm run app:dev      # десктопное приложение в режиме разработки
+npm run app:build    # установщик для вашей системы
+npm run build:single # dist-single/index.html — вся игра в одном файле
+```
+
+На Linux для сборки приложения нужны системные библиотеки: `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`.
+
+| Папка | Что внутри |
+|---|---|
+| `src/engine.js` | правила шахмат с улучшениями фигур, компьютер, поиск вынужденного мата |
+| `src/game.js` | 3D-сцена, ход партии, лавка, тренер |
+| `src/meta.js` | заставка, главное меню, экраны достижений, статистики и настроек |
+| `src/achievements.js` | список достижений и условия их получения |
+| `src/storage.js` | профиль игрока: в приложении файл `profile.json`, в браузере localStorage |
+| `src/i18n.js`, `src/strings-meta.js` | тексты на русском и английском |
+| `data/puzzles.json` | банк задач по трём уровням |
+| `src-tauri/` | десктопная оболочка и настройки сборки |
+
+**Новое достижение** добавляется в два шага: строка в массиве `ACHIEVEMENTS` в `src/achievements.js` (иконка — буква фигуры `K Q R B N P` или название пиксельной иконки из `src/content.js`) и вызов `unlock('id')` в подходящем событии функции `track()`. Игра сообщает о победах, анте, покупках, превращениях пешек и других событиях — список в комментарии над `track()`.
+
+**Релиз:** поднимите версию в `package.json`, `src-tauri/tauri.conf.json` и `src-tauri/Cargo.toml`, затем отправьте тег, например `git tag v0.5.0 && git push --tags`. GitHub Actions соберёт установщики для всех систем и создаст черновик релиза.
+
+## Лицензия
+
+Код и графика игры распространяются по лицензии [MIT](LICENSE). Задачи взяты из базы Lichess (CC0, общественное достояние), Three.js — по лицензии MIT, шрифты Press Start 2P и Tiny5 — по SIL Open Font License.
+
 ---
 
 ## English
@@ -83,6 +136,8 @@
 
 **Training mode** adds a coach. Hints come in two steps: first the idea, then the move with an explanation. The coach comments on the opponent's replies and warns you when a move throws away a forced mate. Undo is free, failed puzzles can be retried, and records are not saved.
 
-To play, download `index.html` and open it in a browser, or enable GitHub Pages for this repository. Switch to English with the button on any screen. The game needs internet on first launch to load Three.js and fonts.
+**Download** the installer for Windows, macOS or Linux from [Releases](../../releases/latest) (about 5–7 MB, works offline), or play the browser version on GitHub Pages. Runs are saved automatically, and the main menu has 25 achievements, lifetime statistics and settings. Switch to English in Settings or with the button on any screen. Every piece type has its own color: a light shade for yours and a dark shade for the opponent.
 
-Puzzles come from the open [Lichess puzzle database](https://database.lichess.org/#puzzles). 3D rendering uses [Three.js](https://threejs.org).
+**Building from source:** `npm install`, then `npm run dev` for the browser or `npm run app:build` for a desktop installer (needs Rust). Push a `v*` tag and GitHub Actions builds installers for all three systems.
+
+Puzzles come from the open [Lichess puzzle database](https://database.lichess.org/#puzzles). 3D rendering uses [Three.js](https://threejs.org). Code and art are under the [MIT license](LICENSE).

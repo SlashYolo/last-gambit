@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Последний гамбит</title>
+<meta name="description" content="Шахматный рогалик на задачах Lichess: мат за лимит ходов, прокачка фигур, реликвии и лавка.">
+<link rel="icon" type="image/png" href="/icon.png">
+</head>
+<body>
+<canvas id="gl" aria-label="Chess board"></canvas>
+
+<aside id="hudL" class="hud" hidden>
+  <div class="blk" id="hTitle"></div>
+  <div class="blk goal" id="hGoal"></div>
+  <div class="row2">
+    <div class="stat moves" id="hMovesBox"><span id="hMovesLbl"></span><b id="hMoves">0</b><small id="hMovesOf"></small></div>
+    <div class="stat rew" id="hRewBox"><span id="hRewLbl"></span><b id="hRew">$0</b><small id="hRewSub"></small></div>
+  </div>
+  <div class="money"><span id="hGoldLbl"></span><b id="hGold">$0</b></div>
+  <div class="blk"><div class="lbl" id="hRelLbl"></div><div class="slots" id="hRelics"></div></div>
+  <div class="blk"><div class="lbl" id="hConsLbl"></div><div class="slots" id="hCons"></div></div>
+  <div class="btns"><button class="btn ghost small" id="bGiveUp" type="button"></button><button class="btn ghost small" id="bMute" type="button"></button></div>
+  <div class="btns"><button class="btn ghost small" id="bBadges" type="button"></button><button class="btn ghost small" id="bLang" type="button"></button></div>
+  <div class="btns"><button class="btn ghost small" id="bColors" type="button"></button><button class="btn ghost small" id="bMenu" type="button"></button></div>
+</aside>
+
+<aside id="hudR" class="hud" hidden>
+  <div class="blk coach" id="coachBlk" hidden><div class="lbl" id="coachLbl"></div><div class="coach-text" id="coachText" aria-live="polite"></div><div class="btns"><button class="btn violet small" id="bHint" type="button"></button><button class="btn green small" id="bHintPlay" type="button" hidden></button><button class="btn ghost small" id="bUndo" type="button"></button></div></div>
+  <div class="blk" id="pieceCard"></div>
+  <div class="blk armyblk"><div class="lbl" id="armyLbl"></div><div class="army" id="armyList"></div></div>
+</aside>
+
+<div id="status" hidden></div>
+<div id="toast" hidden></div>
+<div id="tip" hidden></div>
+<button class="btn gold" id="peekBack" type="button" hidden></button>
+<div id="ov"><div class="screen" id="scr"></div></div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
