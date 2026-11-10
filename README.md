@@ -61,7 +61,7 @@
 
 ## Прогресс и достижения
 
-Забег сохраняется автоматически: закройте игру между задачами и продолжите с того же места из главного меню. Если выйти посреди задачи, она начнётся заново.
+Забег сохраняется автоматически после каждого хода: закройте игру хоть посреди задачи, и «Продолжить» вернёт вас ровно к той же позиции и тому же счётчику ходов. Переиграть неудачную партию, выйдя в меню, нельзя.
 
 В меню есть 27 достижений: от первого мата до анте 8, мата конём, спёртого мата и мата последним доступным ходом. Там же статистика: лучший анте, решённые задачи, точные решения, побеждённые боссы, время в партиях. Обучение не влияет на рекорды и достижения забега, у него свои два достижения.
 
@@ -75,6 +75,9 @@
 |---|---|
 | Ход | нажмите на фигуру, затем на клетку |
 | Снять выбор | Esc или правая кнопка мыши |
+| Пауза: звук, сдаться, выйти в меню | Esc |
+| Повернуть доску | зажать колесико мыши и двигать |
+| Вернуть вид | двойной щелчок колесиком или «Сбросить камеру» в паузе |
 | Подсказка (обучение) | H |
 | Отменить ход (обучение) | Z |
 | Значки над фигурами | B |
@@ -137,7 +140,7 @@ npm run build:single # dist-single/index.html — вся игра в одном 
 
 **Training mode** adds a coach. Hints come in two steps: first the idea, then the move with an explanation. The coach comments on the opponent's replies and warns you when a move throws away a forced mate. Undo is free, failed puzzles can be retried, and records are not saved.
 
-**Download** the installer for Windows, macOS or Linux from [Releases](../../releases/latest) (about 5–7 MB, works offline), or play the browser version on GitHub Pages. From ante 5 the puzzles are random positions with a mate proven by search, so the game never runs out of puzzles. Spare relics can be sold in the shop. Runs are saved automatically, and the main menu has 27 achievements, lifetime statistics and settings. Switch to English in Settings on the main menu. Your pieces are cream, the opponent's are red, and a badge above each piece shows its type.
+**Download** the installer for Windows, macOS or Linux from [Releases](../../releases/latest) (about 5–7 MB, works offline), or play the browser version on GitHub Pages. From ante 5 the puzzles are random positions with a mate proven by search, so the game never runs out of puzzles. Spare relics can be sold in the shop. Runs are saved after every move, so quitting mid-puzzle resumes the exact same position. Esc opens the pause menu, and holding the mouse wheel turns the board. The main menu has 27 achievements, lifetime statistics and settings. Switch to English in Settings on the main menu. Your pieces are cream, the opponent's are red, and a badge above each piece shows its type.
 
 **Building from source:** `npm install`, then `npm run dev` for the browser or `npm run app:build` for a desktop installer (needs Rust). Push a `v*` tag and GitHub Actions builds installers for all three systems.
 

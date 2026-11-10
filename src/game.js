@@ -56,8 +56,11 @@ renderer.setClearColor(0x000000, 0);
 const scene = new THREE.Scene();
 const FOV = 34;
 const camera = new THREE.PerspectiveCamera(FOV, 1, 2, 80);
-const CAMDIR = new THREE.Vector3(0, Math.sin(45 * Math.PI / 180), Math.cos(45 * Math.PI / 180));
 const camTarget = new THREE.Vector3(0, 0, 0.3), camBase = new THREE.Vector3();
+/* Orbit camera: hold the middle mouse button and drag. Angles in degrees; *T are the targets the view eases toward. */
+const CAM_DEFAULT = { yaw: 0, pitch: 45 };
+let camYaw = 0, camPitch = 45, camYawT = 0, camPitchT = 45, camDist = 12, camDrag = null, lastMiddleUp = 0;
+function resetCamera() { camYawT = CAM_DEFAULT.yaw; camPitchT = CAM_DEFAULT.pitch; }
 const rt = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat });
 
 const POST_FRAG = `
@@ -131,7 +134,7 @@ function resize() {
   const availH = MOBILE ? H * 0.46 : H - 96;
   const needH = Math.max(11.2 * W / availW / camera.aspect, 8.8 * H / availH);
   const d = needH / (2 * Math.tan(FOV * Math.PI / 360));
-  camBase.copy(CAMDIR).multiplyScalar(d).add(camTarget);
+  camDist = d;
   if (MOBILE) camera.setViewOffset(W, H, 0, -H * 0.05, W, H); else camera.clearViewOffset();
   camera.updateProjectionMatrix();
 }
@@ -528,10 +531,8 @@ function renderStatic() {
   $('#hMovesLbl').textContent = t('moves'); $('#hRewLbl').textContent = t('reward'); $('#hRewSub').textContent = t('plus_spare');
   $('#hGoldLbl').textContent = t('gold'); $('#hConsLbl').textContent = t('consumables');
   $('#hMovesBox').dataset.tip = t('tip_moves'); $('#hRewBox').dataset.tip = t('tip_reward');
-  if (!giveUpArmed) $('#bGiveUp').textContent = t('give_up');
-  $('#bMute').textContent = muted ? t('sound_off') : t('sound_on');
+  $('#bPause').textContent = t('hud_pause');
   $('#bBadges').textContent = SHOW_BADGES ? t('badges_on') : t('badges_off'); $('#bBadges').dataset.tip = t('tip_badges');
-  $('#bMenu').textContent = t('m_menu');
   $('#peekBack').textContent = t('back');
 }
 function renderHUD() {
@@ -604,14 +605,23 @@ document.addEventListener('pointermove', e => {
 /* ============================== flow ============================== */
 /* Main menu backdrop: the demo board behind the menu screens. */
 function enterMenu() {
-  flushPlaytime(); G.token++;
+  flushPlaytime(); G.token++; saveProfile(true); closePause(); camDrag = null;
   if (G.mode !== 'menu') { G.board = demoBoard(); G.lastMove = null; clearMeshes(); syncMeshes(G.board); refreshMarks(); }
   G.mode = 'menu'; G.enc = null; G.busy = false; hudL.hidden = hudR.hidden = true; setStatus(null); $('#peekBack').hidden = true;
   document.title = t('doc_title');
 }
 /* Serialises the run between puzzles so it can be continued from the main menu. */
-function saveRun(screen) {
+/* Mid-puzzle snapshot: board, moves used, history for undo, coach state. pendingEnemy means it is the opponent's turn. */
+function playSnapshot(pendingEnemy) {
+  return {
+    board: G.board, used: G.used, limit: G.limit, lastMove: G.lastMove, history: G.history, checks: G.checksBonus, coffee: G.coffeeUsed,
+    lineIx: G.lineIx, forced: G.forced, hintsUsed: G.hintsUsed || 0, coach: G.coach, pendingEnemy
+  };
+}
+const savePlay = pendingEnemy => saveRun('play', playSnapshot(pendingEnemy));
+function saveRun(screen, play = null) {
   profile.run = {
+    play,
     screen, training: G.training, uid, army: G.army, gold: G.gold, relics: G.relics, cons: G.cons, encIndex: G.encIndex,
     wins: G.wins, skipped: G.skipped, usedPz: [...G.usedPz], upgrades: G.upgrades || 0, shop: screen === 'shop' ? G.shop : null,
     encs: G.anteEncs.map(e => ({ ante: e.ante, kind: e.kind, boss: e.boss ? e.boss.id : null, rec: e.P ? e.P.rec : null, chains: e.chains, limit: e.limit, reward: e.reward }))
@@ -630,6 +640,8 @@ function continueRun() {
   prefetchAnte(G.anteEncs[0].ante + 1);
   G.mode = 'select'; hudL.hidden = hudR.hidden = false;
   if (r.screen === 'shop' && r.shop) { G.enc = G.anteEncs[Math.max(0, G.encIndex - 1) % 3]; G.shop = r.shop; G.mode = 'shop'; G.rerender = renderShop; renderShop(); }
+  else if (r.screen === 'won') { G.enc = G.anteEncs[Math.max(0, G.encIndex - 1) % 3]; showShop(); }
+  else if (r.screen === 'play' && r.play && G.anteEncs[G.encIndex % 3].P) { G.enc = G.anteEncs[G.encIndex % 3]; resumeLevel(r.play); }
   else showSelect();
 }
 const langBtn = () => `<button class="btn ghost small" data-act="title" type="button">${t('m_menu')}</button>`;
@@ -692,6 +704,62 @@ function miniBoard(enc) {
   }
   return h + '</div>';
 }
+/* Pause (Esc): resume, sound, camera reset, give up, quit to the main menu. */
+const pauseEl = document.createElement('div'); pauseEl.id = 'pause'; pauseEl.hidden = true; document.body.appendChild(pauseEl);
+let pauseOpen = false, pauseGiveUpArmed = 0;
+function renderPause() {
+  const st = profile.settings, inPlay = G.mode === 'play';
+  const armed = Date.now() - pauseGiveUpArmed < 3000;
+  pauseEl.innerHTML = `<div class="pause-box" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+    <h2 id="pauseTitle">${t('pause_title')}</h2>
+    <button class="btn gold" data-pause="resume" type="button">${t('pause_resume')}</button>
+    <div class="set-row"><span>${t('set_sound')}</span><div class="seg" role="group"><button type="button" class="seg-b${st.sound ? ' on' : ''}" data-pause="sound-on" aria-pressed="${st.sound}">${t('on')}</button><button type="button" class="seg-b${st.sound ? '' : ' on'}" data-pause="sound-off" aria-pressed="${!st.sound}">${t('off')}</button></div></div>
+    <div class="set-row"><label for="pauseVol">${t('set_volume')}</label><input id="pauseVol" type="range" min="0" max="100" step="5" value="${Math.round(st.volume * 100)}"></div>
+    <button class="btn ghost" data-pause="camera" type="button">${t('pause_camera')}</button>
+    ${inPlay ? `<button class="btn red" data-pause="giveup" type="button">${armed ? t('sure') : t('give_up')}</button>` : ''}
+    <button class="btn ghost" data-pause="menu" type="button">${t('pause_menu')}</button>
+    <p class="muted">${t('pause_hint')}</p>
+  </div>`;
+  const vol = pauseEl.querySelector('#pauseVol');
+  vol.addEventListener('input', () => { st.volume = vol.value / 100; applySettings('volume'); saveProfile(); });
+  vol.addEventListener('change', () => SFX.coin());
+}
+function openPause() {
+  if (!['play', 'select', 'shop', 'result', 'over'].includes(G.mode)) return;
+  pauseOpen = true; pauseGiveUpArmed = 0; tip.hidden = true; renderPause(); pauseEl.hidden = false;
+  const b = pauseEl.querySelector('[data-pause=resume]'); if (b) b.focus();
+}
+function closePause() { pauseOpen = false; pauseEl.hidden = true; }
+pauseEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-pause]');
+  if (!b) { if (e.target === pauseEl) closePause(); return; }
+  const st = profile.settings;
+  switch (b.dataset.pause) {
+    case 'resume': closePause(); break;
+    case 'sound-on': case 'sound-off': st.sound = b.dataset.pause === 'sound-on'; saveProfile(); applySettings('sound'); renderPause(); SFX.select(); break;
+    case 'camera': resetCamera(); closePause(); break;
+    case 'giveup':
+      if (Date.now() - pauseGiveUpArmed < 3000) { closePause(); if (G.mode === 'play') loseLevel('lose_giveup'); }
+      else { pauseGiveUpArmed = Date.now(); renderPause(); setTimeout(() => { if (pauseOpen) renderPause(); }, 3050); }
+      break;
+    case 'menu': closePause(); showMenu(); break;
+  }
+});
+function resumeLevel(snap) {
+  G.token++; const tok = G.token;
+  setPromoRank(has('crown') ? 6 : 7);
+  Object.assign(G, {
+    board: snap.board, used: snap.used, limit: snap.limit, lastMove: snap.lastMove, history: snap.history || [], checksBonus: snap.checks,
+    coffeeUsed: snap.coffee, lineIx: snap.lineIx, forced: snap.forced, hintsUsed: snap.hintsUsed, coach: snap.coach || [],
+    sel: -1, hover: -1, targeting: null, hint: null, mode: 'play', rerender: null
+  });
+  hideOverlay(); $('#peekBack').hidden = true; hudL.hidden = hudR.hidden = false;
+  clearMeshes(); syncMeshes(G.board);
+  G.moves = legal(G.board, 'w');
+  renderHUD(); refreshMarks();
+  if (snap.pendingEnemy) { G.busy = true; enemyTurn(tok); }
+  else { G.busy = false; renderCoach(); setStatus('st_your', { n: G.limit - G.used }, inCheck(G.board, 'w') ? 'check' : ''); }
+}
 async function startLevel() {
   const enc = G.enc; G.token++; const tok = G.token;
   setPromoRank(has('crown') ? 6 : 7);
@@ -714,6 +782,7 @@ async function startLevel() {
   if (G.training) coachSay([['coach_start', { mv: label, n: enc.P.n, w: () => plural(enc.P.n) }]]);
   renderHUD(); refreshMarks();
   if (!G.moves.length) return loseLevel(inCheck(G.board, 'w') ? 'lose_mate' : 'lose_stale');
+  savePlay(false);
   setStatus('st_opp_moved', { mv: label }, inCheck(G.board, 'w') ? 'check' : '');
 }
 function skipEnc() {
@@ -728,6 +797,7 @@ function advanceEnc() { G.encIndex++; if (G.encIndex % 3 === 0) { G.skipped = []
 async function executeMove(m, side) {
   const tok = G.token;
   const mover = G.board[m.f], ev = {};
+  if (!mover || mover.s !== side) return null;
   const nb = applyMove(G.board, m, ev);
   const mesh = meshes.get(mover.k);
   if (ev.bounce) {
@@ -775,8 +845,8 @@ async function playerMove(m) {
   const check = inCheck(G.board, 'b');
   if (check) { SFX.check(); if (has('gambit') && G.checksBonus < 3) { G.checksBonus++; G.limit++; floatText(kingSq(G.board, 'b'), t('fl_gambit'), '#7cf0a0'); } }
   renderHUD(); refreshMarks();
-  if (!hasLegal(G.board, 'b')) { await wait(250); return winLevel(check ? 'mate' : 'stalemate'); }
-  if (G.used >= G.limit) { await wait(300); return loseLevel('lose_limit'); }
+  if (!hasLegal(G.board, 'b')) { await wait(250); if (tok !== G.token) return; return winLevel(check ? 'mate' : 'stalemate'); }
+  if (G.used >= G.limit) { await wait(300); if (tok !== G.token) return; return loseLevel('lose_limit'); }
   if (check) setStatus('st_check', null, 'check');
   if (G.training) {
     if (onLine) coachSay([['coach_good']], 'good');
@@ -786,13 +856,14 @@ async function playerMove(m) {
     }
     renderHUD();
   }
+  savePlay(true);
   await enemyTurn(tok);
 }
 async function enemyTurn(tok) {
   setStatus('st_think', null, 'think'); await wait(320); if (tok !== G.token) return;
   const m = aiChoose(G.board, G.enc, G.limit - G.used);
   if (!m) return winLevel('stalemate');
-  await wait(60);
+  await wait(60); if (tok !== G.token) return;
   const why = enemyWhy(G.board, m), lbl = moveLabel(G.board, m), wasOn = G.lineIx >= 0;
   if (wasOn) { const sb = G.enc.P.sol[G.lineIx]; G.lineIx = sb && sb.f === m.f && sb.t === m.t ? G.lineIx + 1 : -1; }
   const ev = await executeMove(m, 'b'); if (!ev || tok !== G.token) return;
@@ -800,17 +871,16 @@ async function enemyTurn(tok) {
   G.moves = legal(G.board, 'w');
   const check = inCheck(G.board, 'w');
   renderHUD(); refreshMarks();
-  if (!G.moves.length) { await wait(300); return loseLevel(check ? 'lose_mate' : 'lose_stale'); }
-  G.busy = false; renderCoach();
+  if (!G.moves.length) { await wait(300); if (tok !== G.token) return; return loseLevel(check ? 'lose_mate' : 'lose_stale'); }
+  G.busy = false; renderCoach(); savePlay(false);
   if (check) { SFX.check(); setStatus('st_in_check', null, 'check'); } else setStatus('st_your', { n: G.limit - G.used });
 }
 async function winLevel(kind) {
-  G.busy = true; G.mode = 'result'; G.token++;
+  G.busy = true; G.mode = 'result'; const tok = ++G.token;
   const bk = kingSq(G.board, 'b'); topple(meshes.get(G.board[bk] && G.board[bk].k));
   SFX.win(); flashFx(.5, 0xfff0b0); shake(.014, .4);
   burst(sqPos(bk).setY(.8), [0xf3b53c, 0xfff3c0, 0xe8483b, 0x2f8fe0], 60, 3.5, 6);
   setStatus(kind === 'mate' ? 'st_mate' : 'st_stale');
-  await wait(1100);
   const e = G.enc, unused = Math.max(0, G.limit - G.used);
   const interest = has('piggy') ? unused : Math.floor(unused / 2);
   const exact = G.used <= e.P.n ? 2 : 0;
@@ -819,7 +889,9 @@ async function winLevel(kind) {
   { const lm = G.lastMove, mater = lm && G.board[lm.t] ? G.board[lm.t].t : null;
     track('win', { training: G.training, result: kind, kind: e.kind, boss: e.boss ? e.boss.id : null, exact: !!exact, gold: total, wins: G.wins,
       mater, theme: kind === 'mate' && lm ? mateTheme(G.board, lm) : null, lastMove: G.used >= G.limit, hintsUsed: G.hintsUsed, generated: !!e.P.gen }); }
+  advanceEnc(); saveRun('won'); saveProfile(true);
   renderHUD();
+  await wait(1100); if (tok !== G.token) return;
   const data = { kind, used: G.used, limit: G.limit, unused, interest, exact, total, name: encName(e), reward: e.reward };
   G.rerender = () => renderWin(data, false); renderWin(data, true);
   setTimeout(SFX.coin, 200); setTimeout(SFX.coin, 450); setTimeout(SFX.coin, 700);
@@ -838,17 +910,19 @@ function renderWin(d, animate) {
     <div class="row-btns"><button class="btn gold" data-act="toShop" type="button">${t('to_shop')}</button>${langBtn()}</div>`);
 }
 async function loseLevel(reasonKey) {
-  G.busy = true; G.token++;
+  G.busy = true; const tok = ++G.token;
   const wk = kingSq(G.board, 'w'); if (wk >= 0) topple(meshes.get(G.board[wk].k));
   SFX.lose(); flashFx(.4, 0xff3020); shake(.012, .35); setStatus(reasonKey, null, 'check');
   if (has('phoenix') && reasonKey !== 'lose_giveup' && !G.training) {
     G.relics.splice(G.relics.indexOf('phoenix'), 1); track('phoenix', { training: G.training });
-    await wait(900); toast(t('toast_phoenix'), 2400); SFX.magic();
+    saveRun('select'); saveProfile(true);
+    await wait(900); if (tok !== G.token) return; toast(t('toast_phoenix'), 2400); SFX.magic();
     flashFx(.6, 0xffa040); startLevel(); return;
   }
   G.mode = 'over';
-  await wait(1000);
-  if (!G.training) { profile.run = null; saveProfile(true); }
+  if (!G.training) profile.run = null; else saveRun('select');
+  saveProfile(true);
+  await wait(1000); if (tok !== G.token) return;
   const data = { reasonKey, ante: G.enc.ante, wins: G.wins, army: G.army.length };
   G.rerender = () => renderLose(data, false); renderLose(data, true);
 }
@@ -912,6 +986,7 @@ function applyTarget(i) {
   syncMeshes(G.board); G.moves = legal(G.board, 'w'); renderHUD(); refreshMarks(); afterConsumable();
 }
 function afterConsumable() {
+  if (G.mode === 'play') savePlay(false);
   if (!hasLegal(G.board, 'b')) { winLevel(inCheck(G.board, 'b') ? 'mate' : 'stalemate'); return; }
   setStatus('st_your', { n: G.limit - G.used });
 }
@@ -1008,7 +1083,7 @@ function trainUndo() {
   const h = G.history.pop(); if (!h) return;
   Object.assign(G, { board: h.board, used: h.used, limit: h.limit, lastMove: h.lastMove, gold: h.gold, checksBonus: h.checks, coffeeUsed: h.coffee, lineIx: h.lineIx, forced: h.forced, hint: null, sel: -1 });
   syncMeshes(G.board); G.moves = legal(G.board, 'w'); coachSay([['coach_undo']]); SFX.magic();
-  renderHUD(); refreshMarks(); setStatus('st_your', { n: G.limit - G.used });
+  renderHUD(); refreshMarks(); setStatus('st_your', { n: G.limit - G.used }); savePlay(false);
 }
 
 /* ============================== shop ============================== */
@@ -1120,6 +1195,13 @@ function pickSq(cx, cy) {
   return -1;
 }
 canvas.addEventListener('pointermove', e => {
+  if (camDrag) {
+    const dx = e.clientX - camDrag.x, dy = e.clientY - camDrag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) camDrag.moved = true;
+    camYawT = camDrag.yaw - dx * 0.35;
+    camPitchT = Math.max(18, Math.min(82, camDrag.pitch + dy * 0.25));
+    return;
+  }
   mouseNX = e.clientX / W * 2 - 1; mouseNY = e.clientY / H * 2 - 1;
   if (G.mode !== 'play') { canvas.style.cursor = 'default'; return; }
   const sq = pickSq(e.clientX, e.clientY);
@@ -1130,8 +1212,15 @@ canvas.addEventListener('pointermove', e => {
 });
 canvas.addEventListener('pointerleave', () => { if (G.hover !== -1) { G.hover = -1; refreshMarks(); renderPieceCard(); } });
 canvas.addEventListener('pointerdown', e => {
+  if (e.button === 1) {
+    e.preventDefault();
+    camDrag = { x: e.clientX, y: e.clientY, yaw: camYawT, pitch: camPitchT, moved: false };
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    canvas.style.cursor = 'grabbing';
+    return;
+  }
   if (e.button !== 0) return;
-  if (G.mode !== 'play' || G.busy) return;
+  if (G.mode !== 'play' || G.busy || pauseOpen) return;
   const sq = pickSq(e.clientX, e.clientY); if (sq < 0) { deselect(); return; }
   if (G.targeting) { applyTarget(sq); return; }
   if (G.sel >= 0) { const m = G.moves.find(mm => mm.f === G.sel && mm.t === sq); if (m) { playerMove(m); return; } }
@@ -1139,6 +1228,14 @@ canvas.addEventListener('pointerdown', e => {
   if (p && p.s === 'w') selectSq(sq); else deselect();
 });
 canvas.addEventListener('contextmenu', e => { e.preventDefault(); deselect(); });
+canvas.addEventListener('pointerup', e => {
+  if (e.button !== 1 || !camDrag) return;
+  if (!camDrag.moved) { if (performance.now() - lastMiddleUp < 400) resetCamera(); lastMiddleUp = performance.now(); }
+  camDrag = null; canvas.style.cursor = 'default';
+});
+/* Stops the browser's middle-click autoscroll on Windows and Linux. */
+canvas.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
+canvas.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
 function selectSq(sq) {
   const p = G.board[sq]; if (G.sel === sq) { deselect(); return; }
   G.sel = sq; SFX.select();
@@ -1160,9 +1257,16 @@ function setBadges(v) {
 }
 addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'Escape') {
+    if (pauseOpen) { closePause(); return; }
+    if (document.getElementById('splash') || G.mode === 'menu') return;
+    if (!$('#peekBack').hidden) { $('#peekBack').click(); return; }
+    if (G.mode === 'play' && (G.sel >= 0 || G.targeting)) { deselect(); return; }
+    openPause(); return;
+  }
+  if (pauseOpen) return;
   if (e.code === 'KeyH') askHint();
   if (e.code === 'KeyZ') trainUndo();
-  if (e.key === 'Escape') { if (!$('#peekBack').hidden) $('#peekBack').click(); else deselect(); }
   if (e.code === 'KeyB') setBadges(!SHOW_BADGES);
 });
 
@@ -1178,7 +1282,7 @@ document.addEventListener('click', e => {
     else if (act === 'play') startLevel();
     else if (act === 'skip') skipEnc();
     else if (act === 'peek') { hideOverlay(); $('#peekBack').hidden = false; setStatus('st_peek'); }
-    else if (act === 'toShop') { advanceEnc(); showShop(); }
+    else if (act === 'toShop') showShop();
     else if (act === 'reroll') { if (G.gold >= G.shop.reroll) { G.gold -= G.shop.reroll; G.shop.reroll++; G.shop.main = rollMain(); SFX.coin(); renderShop(); } }
     else if (act === 'leaveShop') showSelect();
     return;
@@ -1190,20 +1294,11 @@ document.addEventListener('click', e => {
   if (arm && G.mode === 'play' && !G.busy) { const i = G.board.findIndex(p => p && p.id === +arm.dataset.arm); if (i >= 0) selectSq(i); }
 });
 $('#peekBack').addEventListener('click', () => { $('#peekBack').hidden = true; ov.hidden = false; setStatus(null); });
-let giveUpArmed = 0;
-$('#bGiveUp').addEventListener('click', () => {
-  if (G.mode !== 'play' || G.busy) return;
-  const btn = $('#bGiveUp');
-  if (Date.now() - giveUpArmed < 2500) { giveUpArmed = 0; btn.textContent = t('give_up'); loseLevel('lose_giveup'); return; }
-  giveUpArmed = Date.now(); btn.textContent = t('sure');
-  setTimeout(() => { if (Date.now() - giveUpArmed >= 2400) { giveUpArmed = 0; btn.textContent = t('give_up'); } }, 2500);
-});
-$('#bMute').addEventListener('click', () => { muted = !muted; profile.settings.sound = !muted; saveProfile(); $('#bMute').textContent = muted ? t('sound_off') : t('sound_on'); });
+$('#bPause').addEventListener('click', openPause);
 $('#bBadges').addEventListener('click', () => setBadges(!SHOW_BADGES));
 $('#bHint').addEventListener('click', askHint);
 $('#bHintPlay').addEventListener('click', playHint);
 $('#bUndo').addEventListener('click', trainUndo);
-$('#bMenu').addEventListener('click', () => { if (G.mode === 'result') return; showMenu(); });
 
 async function applyFullscreen(on) {
   try {
@@ -1255,9 +1350,13 @@ function loop(now) {
     if (m && !m.userData.anim) { m.position.y = .08 + Math.sin(time * 5) * .05; const v = sqPos(G.sel); selLight.position.set(v.x, 1.2, v.z); selLight.intensity = 1.4; }
   } else selLight.intensity = 0;
   for (const m of meshes.values()) if (!m.userData.anim && m.userData.k !== selK && m.position.y > 0 && m.position.y < .2) m.position.y = Math.max(0, m.position.y - dt);
+  { const k = Math.min(1, dt * 10); camYaw += (camYawT - camYaw) * k; camPitch += (camPitchT - camPitch) * k;
+    const yr = camYaw * Math.PI / 180, pr = camPitch * Math.PI / 180;
+    camBase.set(Math.sin(yr) * Math.cos(pr), Math.sin(pr), Math.cos(yr) * Math.cos(pr)).multiplyScalar(camDist).add(camTarget); }
   camera.position.copy(camBase);
-  camera.position.x += Math.sin(time * .3) * .12 + mouseNX * .35;
-  camera.position.y += Math.sin(time * .23) * .06 - mouseNY * .2;
+  const par = camDrag ? 0 : 1;
+  camera.position.x += Math.sin(time * .3) * .12 + mouseNX * .35 * par;
+  camera.position.y += Math.sin(time * .23) * .06 - mouseNY * .2 * par;
   camera.lookAt(camTarget);
   let sx = 0, sy = 0;
   if (shakeT > 0) { shakeT -= dt; sx = (Math.random() - .5) * shakeAmp; sy = (Math.random() - .5) * shakeAmp; } else shakeAmp = 0;

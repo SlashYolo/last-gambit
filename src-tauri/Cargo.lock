@@ -1609,7 +1609,7 @@ dependencies = [
 
 [[package]]
 name = "last-gambit"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "tauri",
  "tauri-build",

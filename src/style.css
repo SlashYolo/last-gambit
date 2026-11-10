@@ -235,3 +235,11 @@ button.slot:hover{transform:translateY(-2px) rotate(-3deg)}
 .gen-wait span{animation:genHop .9s ease-in-out infinite}
 @keyframes genHop{50%{transform:translateY(-14px)}}
 @media (prefers-reduced-motion:reduce){.gen-wait span{animation:none}}
+
+/* ---------- pause ---------- */
+#pause{position:fixed;inset:0;z-index:45;display:grid;place-items:center;background:rgba(5,7,11,.72);padding:16px}
+.pause-box{width:min(440px,100%);background:var(--panel);border:3px solid var(--line);border-radius:12px;box-shadow:0 6px 0 var(--line);padding:18px;display:flex;flex-direction:column;gap:12px;animation:pop .2s ease-out}
+.pause-box h2{font-family:var(--f-head);font-size:20px;line-height:1.4;text-align:center;margin:0 0 4px;text-shadow:0 4px 0 var(--line)}
+.pause-box .set-row{padding:4px 0;border-bottom:0}
+.pause-box .muted{margin:4px 0 0;text-align:center}
+#pauseVol{width:180px;accent-color:var(--gold)}

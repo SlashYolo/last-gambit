@@ -37,8 +37,9 @@ export function showSplash() {
 }
 
 /* ---------- main menu ---------- */
-let confirmNewUntil = 0, confirmFor = '';
+let confirmNewUntil = 0, confirmFor = '', metaScreen = 'menu';
 export function showMenu() {
+  metaScreen = 'menu';
   api.enterMenu();
   api.setRerender(renderMenu);
   renderMenu();
@@ -82,6 +83,7 @@ function startNew(training) {
 
 /* ---------- how to play ---------- */
 function showHow() {
+  metaScreen = 'how';
   api.setRerender(showHow);
   api.showOverlay(`
     <div class="scr-head"><h2>${t('m_how')}</h2></div>
@@ -91,6 +93,7 @@ function showHow() {
 
 /* ---------- achievements ---------- */
 function showAchievements() {
+  metaScreen = 'ach';
   api.setRerender(showAchievements);
   const fmt = ts => new Date(ts).toLocaleDateString(LANG === 'ru' ? 'ru-RU' : 'en-GB');
   const cards = ACHIEVEMENTS.map(a => {
@@ -109,6 +112,7 @@ function achIcon(a) { return a.icon.length === 1 ? api.gl(a.icon, 'w') : api.img
 
 /* ---------- statistics ---------- */
 function showStats() {
+  metaScreen = 'stats';
   api.setRerender(showStats);
   const s = profile.stats;
   const h = Math.floor(s.playSeconds / 3600), m = Math.floor((s.playSeconds % 3600) / 60);
@@ -128,6 +132,7 @@ function showStats() {
 /* ---------- settings ---------- */
 let resetArmed = 0;
 function showSettings() {
+  metaScreen = 'settings';
   api.setRerender(showSettings);
   const st = profile.settings;
   const seg = (key, opts) => `<div class="seg" role="group">${opts.map(([v, label]) => `<button type="button" class="seg-b${String(st[key]) === String(v) ? ' on' : ''}" data-set="${key}" data-val="${v}" aria-pressed="${String(st[key]) === String(v)}">${label}</button>`).join('')}</div>`;
@@ -190,4 +195,9 @@ document.addEventListener('click', e => {
     default: return;
   }
   api.sfx('select');
+});
+
+/* Esc on a menu sub-screen goes back to the main menu. */
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' && api && api.isMenuScreen() && metaScreen !== 'menu' && !document.getElementById('splash')) showMenu();
 });
