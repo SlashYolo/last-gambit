@@ -86,7 +86,7 @@
 
 ## Задачи
 
-До анте 4 включительно — 871 задача на мат в 2–6 ходов из открытой [базы задач Lichess](https://database.lichess.org/#puzzles). Каждая проверена перебором: мат вынужден при любой защите компьютера.
+На анте 1–3 — 871 задача на мат в 2–6 ходов из открытой [базы задач Lichess](https://database.lichess.org/#puzzles). Каждая проверена перебором: мат вынужден при любой защите компьютера.
 
 | Уровень | Задач | Что входит |
 |---|---|---|
@@ -94,9 +94,9 @@
 | Средние | 310 | мат в 2 до 1750 и простые маты в 3 |
 | Тяжёлые | 243 | маты в 3–6 и сложные маты в 2 |
 
-С каждым анте задачи берутся всё ближе к верху рейтинга, а за один забег задачи не повторяются.
+С каждым из трёх анте задачи берутся всё ближе к верху рейтинга, а за один забег задачи не повторяются.
 
-**С анте 5 позиции генерируются случайно**, так что задачи не кончаются и не повторяются. Генератор расставляет фигуры вокруг вражеского короля, делает первый ход противника и принимает позицию, только если перебор доказал вынужденный мат ровно за нужное число ходов при любой защите. Лёгкая и средняя задачи — мат в 2–3, босс — мат в 3. С ростом анте защитников становится больше, а с анте 7 у части вражеских фигур появляются лишние жизни. Позиции ищутся в фоновом потоке заранее, ещё во время предыдущего анте.
+**С анте 4 позиции генерируются случайно**, так что задачи не кончаются и не повторяются. Генератор расставляет фигуры вокруг вражеского короля, делает первый ход противника и принимает позицию, только если перебор доказал вынужденный мат ровно за нужное число ходов при любой защите. Лёгкая и средняя задачи — мат в 2–3, босс — мат в 3. С ростом анте защитников становится больше, а с анте 6 у части вражеских фигур появляются лишние жизни. Позиции ищутся в фоновом потоке заранее, ещё во время предыдущего анте.
 
 ## Разработка
 
@@ -140,7 +140,7 @@ npm run build:single # dist-single/index.html — вся игра в одном 
 
 **Training mode** adds a coach. Hints come in two steps: first the idea, then the move with an explanation. The coach comments on the opponent's replies and warns you when a move throws away a forced mate. Undo is free, failed puzzles can be retried, and records are not saved.
 
-**Download** the installer for Windows, macOS or Linux from [Releases](../../releases/latest) (about 5–7 MB, works offline), or play the browser version on GitHub Pages. From ante 5 the puzzles are random positions with a mate proven by search, so the game never runs out of puzzles. Spare relics can be sold in the shop. Runs are saved after every move, so quitting mid-puzzle resumes the exact same position. Esc opens the pause menu, and holding the mouse wheel turns the board. The main menu has 27 achievements, lifetime statistics and settings. Switch to English in Settings on the main menu. Your pieces are cream, the opponent's are red, and a badge above each piece shows its type.
+**Download** the installer for Windows, macOS or Linux from [Releases](../../releases/latest) (about 5–7 MB, works offline), or play the browser version on GitHub Pages. From ante 4 the puzzles are random positions with a mate proven by search, so the game never runs out of puzzles. Spare relics can be sold in the shop. Runs are saved after every move, so quitting mid-puzzle resumes the exact same position. Esc opens the pause menu, and holding the mouse wheel turns the board. The main menu has 27 achievements, lifetime statistics and settings. Switch to English in Settings on the main menu. Your pieces are cream, the opponent's are red, and a badge above each piece shows its type.
 
 **Building from source:** `npm install`, then `npm run dev` for the browser or `npm run app:build` for a desktop installer (needs Rust). Push a `v*` tag and GitHub Actions builds installers for all three systems.
 

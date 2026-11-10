@@ -243,3 +243,34 @@ button.slot:hover{transform:translateY(-2px) rotate(-3deg)}
 .pause-box .set-row{padding:4px 0;border-bottom:0}
 .pause-box .muted{margin:4px 0 0;text-align:center}
 #pauseVol{width:180px;accent-color:var(--gold)}
+
+/* ---------- compact shop ---------- */
+.screen:has(.shop){max-width:1260px}
+.shop{display:flex;flex-direction:column;gap:14px;width:100%}
+.shop-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--panel);border:3px solid var(--line);border-radius:12px;box-shadow:0 5px 0 var(--line);padding:10px 14px}
+.shop-title{display:flex;flex-direction:column;gap:4px;margin-right:auto}
+.shop-title h2{margin:0;font-size:18px;text-align:left}
+.shop-actions{display:flex;gap:8px;flex-wrap:wrap}
+.shop-rows{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.shop-sec{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:0}
+.shop-sec .cards{gap:10px;flex-wrap:nowrap}
+.shop .card{width:150px;padding:7px;gap:5px;animation:none}
+.shop .card:hover{transform:translateY(-4px)}
+.shop .card .band{font-size:7px;padding:4px 5px}
+.shop .card .art{height:44px}
+.shop .card .art .g{font-size:32px}
+.shop .card .art img{width:32px;height:32px}
+.shop .card h3{font-size:8px}
+.shop .card p{font-size:8px;line-height:1.55}
+.shop .card .for{font-size:8px;line-height:1.5}
+.shop .card .buy{font-size:8px;padding:7px 6px}
+.shop-bottom{display:flex;gap:16px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.shop-sec.grow{flex:1 1 420px}
+.shop .chips{max-width:none;gap:4px}
+.shop .chip{font-size:8px;padding:3px 6px;gap:4px}
+.shop .chip .g{font-size:14px}
+.shop .sell-list{gap:6px}
+.shop .sell-row{padding:4px 6px;gap:6px;box-shadow:0 3px 0 var(--line)}
+.shop .sell-row img{width:24px;height:24px}
+@media (max-width:1100px){.shop-sec .cards{flex-wrap:wrap;justify-content:center}}
+#ov:has(.shop){background:rgba(5,7,11,.84)}

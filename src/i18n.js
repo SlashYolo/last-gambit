@@ -61,7 +61,7 @@ export const STR = {
     subtitle: 'Шахматный рогалик на настоящих задачах. Играйте против компьютера, пока не проиграете.',
     how: 'Как играть',
     rules: [
-      'Каждая ситуация — задача на мат. В анте три задачи: лёгкая, средняя и тяжёлая. До анте 4 это настоящие задачи из открытой базы Lichess, с анте 5 — случайные позиции, где мат проверен перебором.',
+      'Каждая ситуация — задача на мат. В анте три задачи: лёгкая, средняя и тяжёлая. На анте 1–3 это настоящие задачи из открытой базы Lichess, с анте 4 — случайные позиции, где мат проверен перебором.',
       'Противник делает первый ход, дальше ваша очередь. Поставьте мат или пат, пока не кончились ходы. Компьютер защищается сам, а не по сценарию.',
       'Ваша армия из 16 фигур занимает места фигур своего типа в задаче. Прокачанный конь станет конём в каждой задаче, где есть конь.',
       'За победу — золото. В лавке улучшайте конкретные фигуры: новые ходы, жизни, свойства. Реликвии меняют правила.',
@@ -148,7 +148,7 @@ export const STR = {
     subtitle: 'A chess roguelike built on real puzzles. Play against the computer until you lose.',
     how: 'How to play',
     rules: [
-      'Every encounter is a mate puzzle. Each ante has three: easy, medium and hard. Up to ante 4 they are real puzzles from the open Lichess database; from ante 5 they are random positions with a mate proven by search.',
+      'Every encounter is a mate puzzle. Each ante has three: easy, medium and hard. In antes 1–3 they are real puzzles from the open Lichess database; from ante 4 they are random positions with a mate proven by search.',
       'The opponent makes the first move, then it is your turn. Deliver mate or stalemate before you run out of moves. The computer defends on its own, not from a script.',
       'Your 16-piece army takes the places of same-type pieces in each puzzle. An upgraded knight plays as the knight in every puzzle that has one.',
       'Wins pay gold. In the shop you upgrade specific pieces: new moves, lives, traits. Relics bend the rules.',

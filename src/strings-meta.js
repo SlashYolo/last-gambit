@@ -3,7 +3,7 @@ export const META_STR = {
   ru: {
     sell_title: 'Ваши реликвии · продажа за полцены', sell_btn: 'Продать +${n}', toast_sold: 'Продано: {name} (+${n})',
     sell_prism_block: 'Сначала используйте лишний расходник: без Призмы слотов станет 2',
-    gen_wait_title: 'Расставляем фигуры…', gen_wait_sub: 'С анте 5 позиции генерируются заново: компьютер ищет расстановку, где мат вынужден при любой защите. Обычно это занимает пару секунд.',
+    gen_wait_title: 'Расставляем фигуры…', gen_wait_sub: 'С анте 4 позиции генерируются заново: компьютер ищет расстановку, где мат вынужден при любой защите. Обычно это занимает пару секунд.',
     gen_pending: 'Позиция генерируется…', gen_line: 'Мат в {n} · случайная позиция', rating_gen: 'Оценка сложности', gen_tag: 'Случайная позиция · мат проверен перебором',
     pause_title: 'Пауза', pause_resume: 'Продолжить', pause_menu: 'Выйти в меню', pause_camera: 'Сбросить камеру', hud_pause: 'Пауза · Esc',
     pause_hint: 'Esc — пауза. Зажмите колесико мыши и двигайте, чтобы повернуть доску; двойной щелчок колесиком возвращает вид. Прогресс сохраняется, даже если выйти посреди задачи.',
@@ -29,7 +29,7 @@ export const META_STR = {
   en: {
     sell_title: 'Your relics · sell for half price', sell_btn: 'Sell +${n}', toast_sold: 'Sold: {name} (+${n})',
     sell_prism_block: 'Use your extra consumable first: without the Prism you only have 2 slots',
-    gen_wait_title: 'Setting up the board…', gen_wait_sub: 'From ante 5 positions are generated fresh: the computer searches for a setup where mate is forced against any defence. It usually takes a couple of seconds.',
+    gen_wait_title: 'Setting up the board…', gen_wait_sub: 'From ante 4 positions are generated fresh: the computer searches for a setup where mate is forced against any defence. It usually takes a couple of seconds.',
     gen_pending: 'Generating position…', gen_line: 'Mate in {n} · random position', rating_gen: 'Estimated rating', gen_tag: 'Random position · mate verified by search',
     pause_title: 'Paused', pause_resume: 'Resume', pause_menu: 'Quit to menu', pause_camera: 'Reset camera', hud_pause: 'Pause · Esc',
     pause_hint: 'Esc pauses. Hold the mouse wheel and drag to turn the board; double-click the wheel to reset the view. Progress is saved even if you quit mid-puzzle.',

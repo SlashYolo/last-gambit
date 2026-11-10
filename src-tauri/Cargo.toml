@@ -1,6 +1,6 @@
 [package]
 name = "last-gambit"
-version = "0.5.1"
+version = "0.5.3"
 description = "The Last Gambit — a chess roguelike built on real mate puzzles"
 authors = ["The Last Gambit authors"]
 license = "MIT"

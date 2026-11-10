@@ -245,8 +245,34 @@ const BADGE_ROWS = {
   K: ['...xx...', '..xxxx..', '...xx...', '.xxxxxx.', '..xxxx..', '..xxxx..', '.xxxxxx.', '........']
 };
 const badgeMats = {};
+/* The king gets its own larger badge: a jewelled crown with a cross on a gold-framed plate. */
+const KING_BADGE = [
+  '....cc....',
+  '...cccc...',
+  '....cc....',
+  '.x..xx..x.',
+  'xxx.xx.xxx',
+  'xxxxxxxxxx',
+  'xjxxjjxxjx',
+  'xxxxxxxxxx',
+  '.oooooooo.',
+  '.oooooooo.'
+];
+function kingBadgeMat(side) {
+  const c = document.createElement('canvas'); c.width = c.height = 18; const x = c.getContext('2d');
+  x.fillStyle = '#06080b'; x.fillRect(1, 0, 16, 18); x.fillRect(0, 1, 18, 16);
+  x.fillStyle = '#f3b53c'; x.fillRect(2, 1, 14, 16); x.fillRect(1, 2, 16, 14);
+  x.fillStyle = '#06080b'; x.fillRect(3, 2, 12, 14); x.fillRect(2, 3, 14, 12);
+  x.fillStyle = side === 'w' ? '#24364a' : '#3a1420'; x.fillRect(3, 3, 12, 12);
+  const col = side === 'w'
+    ? { x: '#ffd75e', o: '#c8702a', j: '#e8483b', c: '#fff3d6' }
+    : { x: '#ff5a4a', o: '#9b2230', j: '#ffd75e', c: '#ffd75e' };
+  KING_BADGE.forEach((r, yy) => [...r].forEach((ch, xx) => { if (col[ch]) { x.fillStyle = col[ch]; x.fillRect(xx + 4, yy + 4, 1, 1); } }));
+  return new THREE.SpriteMaterial({ map: canvasTex(c), alphaTest: .5, depthTest: false });
+}
 function badgeMat(tp, side) {
   const key = tp + side; if (badgeMats[key]) return badgeMats[key];
+  if (tp === 'K') return (badgeMats[key] = kingBadgeMat(side));
   const c = document.createElement('canvas'); c.width = c.height = 14; const x = c.getContext('2d');
   x.fillStyle = '#06080b'; x.fillRect(1, 0, 12, 14); x.fillRect(0, 1, 14, 12);
   x.fillStyle = side === 'w' ? '#2a3a4c' : '#3a1420'; x.fillRect(2, 1, 10, 12); x.fillRect(1, 2, 12, 10);
@@ -300,7 +326,7 @@ function buildPiece(p) {
   }
   if (!white) inner.rotation.y = Math.PI;
   inner.scale.setScalar(PSCALE[p.t]);
-  const badge = new THREE.Sprite(badgeMat(p.t, p.s)); badge.scale.set(.6, .6, 1); badge.position.y = topOf(p.t) + .42; badge.renderOrder = 10; badge.visible = SHOW_BADGES; g.add(badge);
+  const badge = new THREE.Sprite(badgeMat(p.t, p.s)); const bs = p.t === 'K' ? .82 : .6; badge.scale.set(bs, bs, 1); badge.position.y = topOf(p.t) + (p.t === 'K' ? .52 : .42); badge.renderOrder = 10; badge.visible = SHOW_BADGES; g.add(badge);
   const a = p.id ? armyById(p.id) : null;
   if (a && (a.ups.length || a.mhp > 1 || a.th || a.gr)) { const r = new THREE.Mesh(GEO.aura, AURA_MAT); r.position.y = 0.015; g.add(r); auras.push(r); g.userData.aura = r; }
   g.userData = Object.assign(g.userData, { k: p.k, t: p.t, s: p.s, body, baseColor, inner, deco: null, decoKey: '', badge });
@@ -405,7 +431,8 @@ function pieceFromArmy(a, k, u) { const mv = mvOf(a); return { s: 'w', t: a.t, m
 /* ---------- encounters ---------- */
 function pickPuzzle(kind, ante) {
   const list = BANK[kind], n = list.length;
-  const f = Math.min(1, (ante - 1) / 5);
+  /* The bank covers antes 1–3: easiest third first, the top of the rating range by ante 3. */
+  const f = Math.min(1, (ante - 1) / (GEN_FROM - 2));
   const lo = Math.floor(f * n * 0.7), hi = Math.min(n, lo + Math.ceil(n * 0.3));
   for (let tries = 0; tries < 60; tries++) {
     const rec = list[rint(lo, hi - 1)]; const id = rec.slice(0, rec.indexOf('|'));
@@ -413,8 +440,8 @@ function pickPuzzle(kind, ante) {
   }
   const rec = pick(list); return Object.assign(parsePuzzle(rec), { rec });
 }
-/* ---------- generated positions: from ante 5 the Lichess bank gives way to random positions with a proven forced mate ---------- */
-const GEN_FROM = 5;
+/* ---------- generated positions: from ante 4 the Lichess bank gives way to random positions with a proven forced mate ---------- */
+const GEN_FROM = 4;
 let genWorker = null, genSeq = 0;
 const genWaiters = new Map(), genCache = new Map();
 function workerGen(ante, kind) {
@@ -1136,19 +1163,32 @@ function offerCard(o, row, ix) {
   return `<div class="card k-${o.kind}${o.sold ? ' sold' : ''}"><div class="band">${band}</div><div class="art">${art}</div><h3>${esc(title)}</h3>${sub}<p>${esc(desc)}</p>
     <button class="btn gold small buy" type="button" data-buy="${row}:${ix}" ${dis ? 'disabled' : ''}>${o.sold ? t('bought') : blocked || t('buy', { n: o.cost })}</button></div>`;
 }
+/* Compact shop: actions in the header, all seven offers in one row, selling and the army underneath,
+   so the whole shop fits a regular window without scrolling. */
 function renderShop() {
   const s = G.shop; renderHUD();
   const chips = G.army.map(a => `<span class="chip" data-arm="${a.id}">${gl(a.t, 'w')}${esc(nameOf(a))}${a.ups.length ? ` <span class="tag">+${a.ups.length}</span>` : ''}${a.mhp > 1 ? ` <span class="tag hp">♥${a.mhp}</span>` : ''}</span>`).join('');
-  showOverlay(`
-    <div class="scr-head"><div class="eyebrow">${t('eyebrow_sel', { a: G.enc.ante, w: G.wins, g: G.gold })}</div><h2>${t('shop')}</h2><div class="goldbig">$${G.gold}</div>${langBtn()}</div>
-    <div class="shop-col"><div class="lbl">${t('shop_army')}</div><div class="cards">${s.main.map((o, i) => offerCard(o, 'main', i)).join('') || `<p class="sub">${t('empty_reroll')}</p>`}</div></div>
-    <div class="shop-cols">
-      <div class="shop-col"><div class="lbl">${t('relics_h')}</div><div class="cards">${s.relics.map((o, i) => offerCard(o, 'relics', i)).join('') || `<p class="sub">${t('sold_out')}</p>`}</div></div>
-      <div class="shop-col"><div class="lbl">${t('cons_h')}</div><div class="cards">${s.cons.map((o, i) => offerCard(o, 'cons', i)).join('')}</div></div>
+  const sec = (label, html) => `<section class="shop-sec"><div class="lbl">${label}</div><div class="cards">${html}</div></section>`;
+  showOverlay(`<div class="shop">
+    <div class="shop-top">
+      <div class="shop-title"><div class="eyebrow">${(G.training ? t('training') + ' · ' : '') + t('eyebrow_sel', { a: G.enc.ante, w: G.wins, g: G.gold })}</div><h2>${t('shop')}</h2></div>
+      <div class="goldbig">$${G.gold}</div>
+      <div class="shop-actions">
+        <button class="btn green" type="button" data-act="reroll" ${G.gold < s.reroll ? 'disabled' : ''}>${t('reroll', { n: s.reroll })}</button>
+        <button class="btn red" type="button" data-act="leaveShop">${t('next')}</button>
+        ${langBtn()}
+      </div>
     </div>
-    ${G.relics.length ? `<div class="shop-col"><div class="lbl">${t('sell_title')}</div><div class="sell-list">${G.relics.map(id => `<div class="sell-row" data-tip="${esc(relicTip(id))}">${img(id, '')}<span>${esc(L(RELICS[id].name))}</span><button class="btn green small" type="button" data-sell="${id}">${t('sell_btn', { n: sellPrice(id) })}</button></div>`).join('')}</div></div>` : ''}
-    <div class="shop-col"><div class="lbl">${t('army_hover')}</div><div class="chips">${chips}</div></div>
-    <div class="row-btns"><button class="btn green" type="button" data-act="reroll" ${G.gold < s.reroll ? 'disabled' : ''}>${t('reroll', { n: s.reroll })}</button><button class="btn red" type="button" data-act="leaveShop">${t('next')}</button></div>`);
+    <div class="shop-rows">
+      ${sec(t('shop_army'), s.main.map((o, i) => offerCard(o, 'main', i)).join('') || `<p class="muted">${t('empty_reroll')}</p>`)}
+      ${sec(t('relics_h'), s.relics.map((o, i) => offerCard(o, 'relics', i)).join('') || `<p class="muted">${t('sold_out')}</p>`)}
+      ${sec(t('cons_h'), s.cons.map((o, i) => offerCard(o, 'cons', i)).join(''))}
+    </div>
+    <div class="shop-bottom">
+      ${G.relics.length ? `<section class="shop-sec"><div class="lbl">${t('sell_title')}</div><div class="sell-list">${G.relics.map(id => `<div class="sell-row" data-tip="${esc(relicTip(id))}">${img(id, '')}<button class="btn green small" type="button" data-sell="${id}" aria-label="${esc(L(RELICS[id].name))}">${t('sell_btn', { n: sellPrice(id) })}</button></div>`).join('')}</div></section>` : ''}
+      <section class="shop-sec grow"><div class="lbl">${t('army_hover')}</div><div class="chips">${chips}</div></section>
+    </div>
+  </div>`);
 }
 const sellPrice = id => Math.max(1, Math.floor(RELICS[id].cost / 2));
 function sellRelic(id) {

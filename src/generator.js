@@ -1,4 +1,4 @@
-/* Random mate positions for the late game (ante 5 and later).
+/* Random mate positions for the late game (ante 4 and later).
    A position is accepted only when the forced-mate solver proves that white mates in exactly n moves
    against every defence, so every generated puzzle is solvable. The result uses the same record
    format as the Lichess bank: id|rating|FEN board|side to move|opponent's first move|solution|lives. */
@@ -10,13 +10,13 @@ const KITS = [['Q', 'R'], ['Q', 'N'], ['R', 'R'], ['R', 'B'], ['Q', 'B'], ['R', 
 
 /* Difficulty by ante and encounter kind: mate length, defenders, extra lives. */
 export function genSpec(ante, kind) {
-  const a = Math.max(0, ante - 5);
+  const a = Math.max(0, ante - 4);
   return {
     minN: kind === 2 ? 3 : 2,
     maxN: kind === 0 ? 2 : 3,
     pieces: Math.min(5, 1 + kind + Math.floor(a / 2)),
     pawns: Math.min(5, 2 + Math.floor(a / 3)),
-    lives: ante >= 7 ? Math.min(3, 1 + Math.floor((ante - 7) / 2)) : 0,
+    lives: ante >= 6 ? Math.min(3, 1 + Math.floor((ante - 6) / 2)) : 0,
     ante, kind
   };
 }
@@ -33,7 +33,7 @@ function randomBoard(spec) {
     const x = kx + rnd(3) - 1, y = Math.random() < .7 ? ky - 1 : 4 + rnd(3);
     if (put('b', 'P', x, y)) i++;
   }
-  const defs = ['R', 'B', 'N', 'R', 'B', 'N', ...(spec.ante >= 7 ? ['Q'] : [])];
+  const defs = ['R', 'B', 'N', 'R', 'B', 'N', ...(spec.ante >= 6 ? ['Q'] : [])];
   for (let i = 0, tries = 0; i < spec.pieces && tries < 40; tries++) if (put('b', pick(defs), rnd(8), 3 + rnd(5))) i++;
   for (let tries = 0; tries < 20; tries++) if (put('w', 'K', rnd(8), rnd(2))) break;
   for (const t of pick(KITS)) for (let tries = 0; tries < 30; tries++) if (put('w', t, rnd(8), 1 + rnd(7))) break;
@@ -101,7 +101,7 @@ export function generatePuzzle(spec, budgetMs = 4000) {
     if (!line || line.length !== 2 * r.n - 1) continue;
     const lives = b0.map((p, i) => p && p.hp > 1 ? `${sqName(i)}:${p.hp}` : null).filter(Boolean).join(',');
     const defenders = b0.filter(p => p && p.s === 'b' && p.t !== 'K').length;
-    const rating = Math.min(2600, 1300 + 250 * (r.n - 1) + 40 * defenders + 60 * (spec.ante - 5) + 120 * (lives ? lives.split(',').length : 0));
+    const rating = Math.min(2600, 1300 + 250 * (r.n - 1) + 40 * defenders + 60 * (spec.ante - 4) + 120 * (lives ? lives.split(',').length : 0));
     const id = 'gen' + Date.now().toString(36) + rnd(1e6).toString(36);
     return { rec: [id, rating, fenOf(b0), 'b', uci(init), line.map(uci).join(' '), lives].join('|'), tries, n: r.n };
   }
