@@ -25,6 +25,8 @@ export const ACHIEVEMENTS = [
   A('smith', 'hammer', 'Кузнец', 'Blacksmith', 'Купите 5 улучшений фигур за один забег', 'Buy 5 piece upgrades in one run'),
   A('last_breath', 'sand', 'На последнем дыхании', 'Last Breath', 'Поставьте мат последним доступным ходом', 'Deliver mate with your very last move'),
   A('blindfold', 'B', 'Вслепую', 'Blindfolded', 'Победите босса «Слепая партия»', 'Defeat the Blindfold boss'),
+  A('merchant', 'piggy', 'Барахолка', 'Flea Market', 'Продайте реликвию', 'Sell a relic'),
+  A('generated', 'prism', 'Новая территория', 'Uncharted', 'Решите случайную позицию на анте 5', 'Solve a random position at ante 5'),
   A('phoenix', 'phoenix', 'Из пепла', 'From the Ashes', 'Спаситесь пером феникса', 'Get saved by the phoenix feather'),
   A('solver50', 'bless', 'Решатель', 'Solver', 'Решите 50 задач в забегах', 'Solve 50 puzzles in runs'),
   A('solver200', 'crown', 'Задачник', 'Problemist', 'Решите 200 задач в забегах', 'Solve 200 puzzles in runs'),
@@ -46,7 +48,7 @@ function unlock(id) {
   notify(BY_ID[id]);
 }
 
-/* Events: runStart, win, ante, promo, gold, relics, upgrades, phoenix, hint, playtime. */
+/* Events: runStart, win, ante, promo, gold, relics, upgrades, sell, phoenix, hint, playtime. */
 export function track(ev, d = {}) {
   const s = profile.stats, tr = !!d.training;
   switch (ev) {
@@ -78,6 +80,7 @@ export function track(ev, d = {}) {
       if (d.exact) unlock('exact');
       if (s.exact >= 10) unlock('sniper');
       if (d.lastMove) unlock('last_breath');
+      if (d.generated) unlock('generated');
       if (s.solved >= 50) unlock('solver50');
       if (s.solved >= 200) unlock('solver200');
       break;
@@ -93,6 +96,7 @@ export function track(ev, d = {}) {
     case 'relics': if (!tr && d.count >= 5) unlock('collector'); break;
     case 'upgrades': if (!tr && d.count >= 5) unlock('smith'); break;
     case 'phoenix': if (!tr) unlock('phoenix'); break;
+    case 'sell': if (!tr) unlock('merchant'); break;
     case 'hint': s.hints++; break;
     case 'playtime': s.playSeconds += d.seconds || 0; break;
   }

@@ -1,6 +1,10 @@
 /* Strings for the splash, main menu, progress, achievements and settings screens. */
 export const META_STR = {
   ru: {
+    sell_title: 'Ваши реликвии · продажа за полцены', sell_btn: 'Продать +${n}', toast_sold: 'Продано: {name} (+${n})',
+    sell_prism_block: 'Сначала используйте лишний расходник: без Призмы слотов станет 2',
+    gen_wait_title: 'Расставляем фигуры…', gen_wait_sub: 'С анте 5 позиции генерируются заново: компьютер ищет расстановку, где мат вынужден при любой защите. Обычно это занимает пару секунд.',
+    gen_pending: 'Позиция генерируется…', gen_line: 'Мат в {n} · случайная позиция', rating_gen: 'Оценка сложности', gen_tag: 'Случайная позиция · мат проверен перебором',
     splash_tag: 'шахматный рогалик', splash_press: 'Нажмите любую клавишу',
     m_continue: 'Продолжить', m_continue_sub: 'Анте {a} · побед {w} · ${g}', m_continue_train: 'Обучение · анте {a}',
     m_new: 'Новый забег', m_train: 'Обучение', m_how: 'Как играть', m_ach: 'Достижения', m_stats: 'Статистика',
@@ -16,11 +20,15 @@ export const META_STR = {
     st_bosses: 'Боссов побеждено', st_train: 'Решено задач в обучении', st_hints: 'Подсказок взято', st_time: 'Время в партиях', st_time_v: '{h} ч {m} мин',
     st_note: 'Обучение не влияет на рекорды и достижения забега.',
     set_title: 'Настройки', set_lang: 'Язык', set_sound: 'Звук', set_volume: 'Громкость', set_badges: 'Значки над фигурами',
-    set_colors: 'Цвета фигур', set_colors_type: 'По типу', set_colors_classic: 'Классика', set_crt: 'Эффект старого экрана',
+    set_crt: 'Эффект старого экрана',
     set_crt_note: 'Изгиб экрана и строки развёртки', set_full: 'Полный экран', set_reset: 'Сбросить прогресс',
     set_reset_sure: 'Точно? Нажмите ещё раз', set_reset_done: 'Прогресс сброшен', on: 'Вкл', off: 'Выкл'
   },
   en: {
+    sell_title: 'Your relics · sell for half price', sell_btn: 'Sell +${n}', toast_sold: 'Sold: {name} (+${n})',
+    sell_prism_block: 'Use your extra consumable first: without the Prism you only have 2 slots',
+    gen_wait_title: 'Setting up the board…', gen_wait_sub: 'From ante 5 positions are generated fresh: the computer searches for a setup where mate is forced against any defence. It usually takes a couple of seconds.',
+    gen_pending: 'Generating position…', gen_line: 'Mate in {n} · random position', rating_gen: 'Estimated rating', gen_tag: 'Random position · mate verified by search',
     splash_tag: 'a chess roguelike', splash_press: 'Press any key',
     m_continue: 'Continue', m_continue_sub: 'Ante {a} · {w} wins · ${g}', m_continue_train: 'Training · ante {a}',
     m_new: 'New run', m_train: 'Training', m_how: 'How to play', m_ach: 'Achievements', m_stats: 'Statistics',
@@ -36,7 +44,7 @@ export const META_STR = {
     st_bosses: 'Bosses defeated', st_train: 'Puzzles solved in training', st_hints: 'Hints taken', st_time: 'Time in puzzles', st_time_v: '{h} h {m} min',
     st_note: 'Training does not affect run records or achievements.',
     set_title: 'Settings', set_lang: 'Language', set_sound: 'Sound', set_volume: 'Volume', set_badges: 'Badges above pieces',
-    set_colors: 'Piece colors', set_colors_type: 'By type', set_colors_classic: 'Classic', set_crt: 'Retro screen effect',
+    set_crt: 'Retro screen effect',
     set_crt_note: 'Screen curvature and scanlines', set_full: 'Fullscreen', set_reset: 'Reset progress',
     set_reset_sure: 'Sure? Press again', set_reset_done: 'Progress reset', on: 'On', off: 'Off'
   }

@@ -1,7 +1,7 @@
 {
   "name": "last-gambit",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "description": "The Last Gambit — a chess roguelike built on real mate puzzles",
   "license": "MIT",
@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "@fontsource/press-start-2p": "^5.3.0",
-    "@fontsource/tiny5": "^5.3.0",
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-store": "^2.5.0",
     "three": "0.128.0"

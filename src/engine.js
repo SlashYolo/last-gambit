@@ -32,7 +32,8 @@ function pseudo(b, i, out) {
     } else if (LEAP[m]) {
       for (const [dx, dy] of LEAP[m]) add(x + dx, y + dy, 0);
     } else if (m === 'P') {
-      if (add(x, y + dir, 1) && (p.u || p.mv.includes('Pd'))) add(x, y + 2 * dir, 1);
+      /* Double step only from the pawn's own starting rank (or with the Dash upgrade). */
+      if (add(x, y + dir, 1) && (y === (p.s === 'w' ? 1 : 6) || p.mv.includes('Pd'))) add(x, y + 2 * dir, 1);
       add(x - 1, y + dir, 2); add(x + 1, y + dir, 2);
     } else if (m === 'Pb') add(x, y - dir, 1);
     else if (m === 'Ps') { add(x - 1, y, 1); add(x + 1, y, 1); }
@@ -176,7 +177,7 @@ function aiChoose(b, enc, movesLeft) {
 const sqIx = (u, flip) => { const x = u.charCodeAt(0) - 97, y = +u[1] - 1; return (flip ? 7 - y : y) * 8 + x; };
 const sqName = i => 'abcdefgh'[i & 7] + ((i >> 3) + 1);
 function parsePuzzle(rec) {
-  const [id, rating, fenBoard, stm, init, sol] = rec.split('|');
+  const [id, rating, fenBoard, stm, init, sol, lives] = rec.split('|');
   const flip = stm === 'w';
   const b = new Array(64).fill(null); let k = 1;
   fenBoard.split('/').forEach((row, ri) => {
@@ -191,6 +192,8 @@ function parsePuzzle(rec) {
       x++;
     }
   });
+  /* Optional 7th field: squares of pieces with extra lives, e.g. "e7:2,c6:2" (used by generated positions). */
+  if (lives) for (const it of lives.split(',')) { const [sq, n] = it.split(':'); const i = sqIx(sq, flip); if (b[i]) b[i] = { ...b[i], hp: +n, mhp: +n }; }
   const mv = u => ({ f: sqIx(u.slice(0, 2), flip), t: sqIx(u.slice(2, 4), flip) });
   const line = sol.split(' ');
   const P = { id, rating: +rating, board: b, init: mv(init), sol: line.map(mv), n: Math.ceil(line.length / 2) };

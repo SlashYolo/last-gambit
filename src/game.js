@@ -6,6 +6,8 @@ import BANK from '../data/puzzles.json';
 import { profile, saveProfile, isDesktop } from './storage.js';
 import { track } from './achievements.js';
 import { initMeta, showMenu, showSplash } from './meta.js';
+import { generatePuzzle, genSpec } from './generator.js';
+import GenWorker from './gen.worker.js?worker&inline';
 
 /* ============================== utils ============================== */
 const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
@@ -15,14 +17,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-/* Piece colours: each type has its own hue, light for your side and dark for the opponent. "classic" keeps cream vs red. */
-const PIECE_COL = {
-  K: ['#ffd75e', '#6e4a06'], Q: ['#f0a8ff', '#4f1a66'], R: ['#8fd0ff', '#123866'],
-  B: ['#b4f56e', '#1b5223'], N: ['#ffb070', '#6e2a0c'], P: ['#f4eedf', '#34303a']
-};
-const CLASSIC_COL = ['#efe2c4', '#a3283c'];
-let COLOR_MODE = 'type';
-const pieceHex = (tp, s) => (COLOR_MODE === 'classic' ? CLASSIC_COL : PIECE_COL[tp])[s === 'w' ? 0 : 1];
+/* Piece colours: cream for your side, red for the opponent; the badges above the pieces show the type. */
+const SIDE_COL = { w: '#efe2c4', b: '#a3283c' };
+const pieceHex = (tp, s) => SIDE_COL[s];
 const gl = (tp, s, cls = '') => `<span class="g ${s} ${cls}" style="color:${pieceHex(tp, s)}">${GLY[tp]}︎</span>`;
 /* ============================== audio ============================== */
 let AC = null, muted = false, VOLUME = 0.8;
@@ -246,22 +243,34 @@ const BADGE_ROWS = {
 };
 const badgeMats = {};
 function badgeMat(tp, side) {
-  const key = tp + side + COLOR_MODE; if (badgeMats[key]) return badgeMats[key];
+  const key = tp + side; if (badgeMats[key]) return badgeMats[key];
   const c = document.createElement('canvas'); c.width = c.height = 14; const x = c.getContext('2d');
   x.fillStyle = '#06080b'; x.fillRect(1, 0, 12, 14); x.fillRect(0, 1, 14, 12);
   x.fillStyle = side === 'w' ? '#2a3a4c' : '#3a1420'; x.fillRect(2, 1, 10, 12); x.fillRect(1, 2, 12, 10);
-  x.fillStyle = COLOR_MODE === 'classic' ? (side === 'w' ? '#fff3d6' : '#ff5a4a') : PIECE_COL[tp][0];
+  x.fillStyle = side === 'w' ? '#fff3d6' : '#ff5a4a';
   BADGE_ROWS[tp].forEach((r, yy) => [...r].forEach((ch, xx) => { if (ch === 'x') x.fillRect(xx + 3, yy + 3, 1, 1); }));
   const m = new THREE.SpriteMaterial({ map: canvasTex(c), alphaTest: .5, depthTest: false });
   return (badgeMats[key] = m);
 }
 let SHOW_BADGES = true;
-const HEART_MAT = new THREE.SpriteMaterial({ map: canvasTex(ICON_CANVAS.heart), alphaTest: 0.5 });
+const DIGITS = { 2: ['111', '001', '111', '100', '111'], 3: ['111', '001', '111', '001', '111'], 4: ['101', '101', '111', '001', '001'], 5: ['111', '100', '111', '001', '111'] };
+const LIFE_HEART = ['.yy.yy.', 'ywyyyyy', 'yyyyyyy', '.yyyyy.', '..yyy..', '...y...'];
+const lifeMats = {};
+/* Lives badge: a cream plate with a gold heart and the number of lives, readable on any piece colour. */
+function lifeMat(n) {
+  n = Math.min(5, n); if (lifeMats[n]) return lifeMats[n];
+  const c = document.createElement('canvas'); c.width = 16; c.height = 10; const x = c.getContext('2d');
+  x.fillStyle = '#06080b'; x.fillRect(1, 0, 14, 10); x.fillRect(0, 1, 16, 8);
+  x.fillStyle = '#fff3d6'; x.fillRect(2, 1, 12, 8); x.fillRect(1, 2, 14, 6);
+  const col = { y: '#e0a020', w: '#ffffff' };
+  LIFE_HEART.forEach((r, yy) => [...r].forEach((ch, xx) => { if (col[ch]) { x.fillStyle = col[ch]; x.fillRect(2 + xx, 2 + yy, 1, 1); } }));
+  x.fillStyle = '#06080b';
+  DIGITS[n].forEach((r, yy) => [...r].forEach((ch, xx) => { if (ch === '1') x.fillRect(10 + xx, 2 + yy, 1, 1); }));
+  return (lifeMats[n] = new THREE.SpriteMaterial({ map: canvasTex(c), alphaTest: 0.5, depthTest: false }));
+}
 const SNOW_MAT = new THREE.SpriteMaterial({ map: canvasTex(ICON_CANVAS.snow), alphaTest: 0.5 });
 const LOCK_MAT = new THREE.SpriteMaterial({ map: canvasTex(ICON_CANVAS.lock), alphaTest: 0.5 });
 const EYE_MAT = new THREE.MeshBasicMaterial({ color: 0x120a10 });
-const SIDE_GEO = (() => { const g = new THREE.RingGeometry(.3, .37, 20); g.rotateX(-Math.PI / 2); return g; })();
-const SIDE_MAT = { w: new THREE.MeshBasicMaterial({ color: 0xeaf8ff, transparent: true, opacity: .9, depthWrite: false }), b: new THREE.MeshBasicMaterial({ color: 0xff3a30, transparent: true, opacity: .9, depthWrite: false }) };
 const AURA_MAT = new THREE.MeshBasicMaterial({ color: 0xf3b53c, transparent: true, opacity: .85, depthWrite: false });
 const meshes = new Map(); const auras = [];
 function part(geo, mat) {
@@ -291,7 +300,6 @@ function buildPiece(p) {
   const badge = new THREE.Sprite(badgeMat(p.t, p.s)); badge.scale.set(.6, .6, 1); badge.position.y = topOf(p.t) + .42; badge.renderOrder = 10; badge.visible = SHOW_BADGES; g.add(badge);
   const a = p.id ? armyById(p.id) : null;
   if (a && (a.ups.length || a.mhp > 1 || a.th || a.gr)) { const r = new THREE.Mesh(GEO.aura, AURA_MAT); r.position.y = 0.015; g.add(r); auras.push(r); g.userData.aura = r; }
-  const ring = new THREE.Mesh(SIDE_GEO, SIDE_MAT[p.s]); ring.position.y = 0.013; ring.renderOrder = 3; g.add(ring);
   g.userData = Object.assign(g.userData, { k: p.k, t: p.t, s: p.s, body, baseColor, inner, deco: null, decoKey: '', badge });
   return g;
 }
@@ -300,7 +308,7 @@ function updateDecor(m, p) {
   if (ud.decoKey === key) return; ud.decoKey = key;
   if (ud.deco) m.remove(ud.deco);
   const d = new THREE.Group(), top = topOf(p.t) + .82;
-  if (p.hp > 1) for (let i = 0; i < p.hp; i++) { const s = new THREE.Sprite(HEART_MAT); s.scale.set(.22, .22, 1); s.position.set((i - (p.hp - 1) / 2) * .22, top, 0); d.add(s); }
+  if (p.hp > 1) { const s = new THREE.Sprite(lifeMat(p.hp)); s.scale.set(.5, .31, 1); s.position.set(0, top, 0); s.renderOrder = 11; d.add(s); }
   const extra = p.fz > 0 ? SNOW_MAT : p.ch ? LOCK_MAT : null;
   if (extra) { const s = new THREE.Sprite(extra); s.scale.set(.34, .34, 1); s.position.set(0, top + (p.hp > 1 ? .26 : 0), 0); d.add(s); }
   ud.body.color.set(p.fz > 0 ? 0xdff6ff : ud.baseColor);
@@ -402,17 +410,57 @@ function pickPuzzle(kind, ante) {
   }
   const rec = pick(list); return Object.assign(parsePuzzle(rec), { rec });
 }
+/* ---------- generated positions: from ante 5 the Lichess bank gives way to random positions with a proven forced mate ---------- */
+const GEN_FROM = 5;
+let genWorker = null, genSeq = 0;
+const genWaiters = new Map(), genCache = new Map();
+function workerGen(ante, kind) {
+  return new Promise(res => {
+    try {
+      if (!genWorker) {
+        genWorker = new GenWorker();
+        genWorker.onmessage = e => { const w = genWaiters.get(e.data.id); genWaiters.delete(e.data.id); if (w) w(e.data.rec); };
+        genWorker.onerror = () => { genWorker = null; for (const w of genWaiters.values()) w(null); genWaiters.clear(); };
+      }
+      const id = ++genSeq; genWaiters.set(id, res); genWorker.postMessage({ id, ante, kind });
+    } catch (e) { res(null); }
+  });
+}
+/* Fallback when workers are unavailable: a short search on the main thread, then the hardest bank puzzles. */
+function mainThreadGen(ante, kind) {
+  const r = generatePuzzle({ ...genSpec(ante, kind), minN: 2, maxN: 2, lives: 0 }, 1500);
+  return r ? r.rec : pickPuzzle(2, 99).rec;
+}
+function generated(ante, kind) {
+  const key = ante + ':' + kind;
+  if (!genCache.has(key)) genCache.set(key, workerGen(ante, kind).then(rec => rec || mainThreadGen(ante, kind)));
+  return genCache.get(key);
+}
+function prefetchAnte(ante) { if (ante >= GEN_FROM) for (const k of [0, 1, 2]) generated(ante, k); }
+function setEncPuzzle(enc, rec, saved) {
+  const P = rec ? Object.assign(parsePuzzle(rec), { rec }) : pickPuzzle(enc.kind, enc.ante);
+  P.gen = P.id.startsWith('gen');
+  let slack = Math.max(enc.kind === 2 ? 0 : 1, [3, 2, 2][enc.kind] - Math.floor((enc.ante - 1) / 2));
+  if (enc.boss && enc.boss.id === 'haste') slack = 0;
+  if (enc.boss && enc.boss.id === 'chains') slack += 1;
+  enc.chains = saved ? saved.chains : (enc.boss && enc.boss.id === 'chains'
+    ? shuffle(P.board.map((p, i) => p && p.s === 'w' && p.t !== 'K' && !P.movers.has(i) ? i : -1).filter(i => i >= 0)).slice(0, 2) : []);
+  enc.limit = saved ? saved.limit : P.n + slack;
+  enc.P = P;
+}
+function awaitGenerated(enc) {
+  enc.ready = generated(enc.ante, enc.kind).then(rec => {
+    genCache.delete(enc.ante + ':' + enc.kind);
+    setEncPuzzle(enc, rec);
+    if (G.anteEncs.includes(enc) && G.mode === 'select' && !ov.hidden) showSelect();
+    return enc;
+  });
+}
 function genEnc(ante, kind) {
   const boss = kind === 2 ? pick(BOSSES) : null;
-  const P = pickPuzzle(kind, ante);
-  let slack = Math.max(kind === 2 ? 0 : 1, [3, 2, 2][kind] - Math.floor((ante - 1) / 2));
-  if (boss && boss.id === 'haste') slack = 0;
-  if (boss && boss.id === 'chains') slack += 1;
-  let chains = [];
-  if (boss && boss.id === 'chains') {
-    chains = shuffle(P.board.map((p, i) => p && p.s === 'w' && p.t !== 'K' && !P.movers.has(i) ? i : -1).filter(i => i >= 0)).slice(0, 2);
-  }
-  return { ante, kind, boss, P, chains, limit: P.n + slack, reward: [3, 4, 6][kind] + ante - 1 };
+  const enc = { ante, kind, boss, P: null, chains: [], limit: 0, reward: [3, 4, 6][kind] + ante - 1 };
+  if (ante >= GEN_FROM) awaitGenerated(enc); else setEncPuzzle(enc, null);
+  return enc;
 }
 const encName = e => e.boss ? L(e.boss.name) : t('tier_name')[e.kind];
 /* Places army members on the puzzle's white pieces of the same type: pieces that move in the solution get the strongest members first. */
@@ -429,7 +477,7 @@ function buildBoard(enc) {
   for (const i of enc.chains) if (b[i] && b[i].s === 'w') b[i] = { ...b[i], ch: true };
   return b;
 }
-function newAnte() { const ante = Math.floor(G.encIndex / 3) + 1; G.anteEncs = [0, 1, 2].map(k => genEnc(ante, k)); }
+function newAnte() { const ante = Math.floor(G.encIndex / 3) + 1; G.anteEncs = [0, 1, 2].map(k => genEnc(ante, k)); prefetchAnte(ante + 1); }
 function moveLabel(b, m) { const p = b[m.f]; return `${GLY[p.t]}︎ ${sqName(m.f)}→${sqName(m.t)}`; }
 
 /* ============================== UI helpers ============================== */
@@ -440,7 +488,7 @@ function setStatus(k, v, cls = '') { G.st = k ? { k, v, cls } : null; paintStatu
 function paintStatus() { const s = G.st; statusEl.textContent = s ? t(s.k, s.v) : ''; statusEl.className = s ? s.cls : ''; statusEl.hidden = !s; }
 function showOverlay(html) { scr.innerHTML = html; ov.hidden = false; tip.hidden = true; }
 function hideOverlay() { ov.hidden = true; }
-function heartsHTML(hp) { return hp > 0 ? `<div class="hearts">${Array.from({ length: hp }, () => img('heart', '')).join('')}</div>` : ''; }
+function heartsHTML(hp) { return hp > 0 ? `<div class="hearts"><span class="lives">♥ ${hp}</span></div>` : ''; }
 const relicTip = id => `${L(RELICS[id].name)}|${L(RELICS[id].desc)}`;
 const consTip = id => `${L(CONS[id].name)}|${L(CONS[id].desc)}`;
 const tname = tp => L(TNAME[tp]);
@@ -467,17 +515,12 @@ function armyEntryCard(a) {
   if (a.gr) lines.push(`<li class="perk">${t('li_greed')}</li>`);
   return `<div class="pc-head">${gl(a.t, 'w')}<div><div class="pc-name">${esc(nameOf(a))}</div><div class="pc-type">${tname(a.t)}</div>${a.mhp > 1 ? heartsHTML(a.mhp) : ''}</div></div><ul class="mvlist">${lines.join('')}</ul>`;
 }
-function legendHTML() {
-  const rows = ['K', 'Q', 'R', 'B', 'N', 'P'].map(tp => `<div class="lg-row">${gl(tp, 'w')}<span>${tname(tp)}</span>${gl(tp, 'b')}</div>`).join('');
-  return `<div class="legend"><div class="lbl">${t('legend_title')}</div><div class="lg-head"><span>${t('legend_you')}</span><span>${t('legend_enemy')}</span></div>${rows}<p class="muted">${t(COLOR_MODE === 'classic' ? 'legend_note_classic' : 'legend_note')}</p></div>`;
-}
 function renderPieceCard() {
   const el = $('#pieceCard');
   if (G.mode === 'play' && G.board) {
     const i = G.hover >= 0 && G.board[G.hover] ? G.hover : G.sel;
     el.innerHTML = pieceInfoHTML(i >= 0 ? G.board[i] : null);
   } else el.innerHTML = G.army.length ? `<div class="lbl">${t('your_army')}</div><p class="muted">${t('army_hint')}</p>` : '';
-  if (!el.querySelector('.pc-head') && G.board) el.innerHTML += legendHTML();
 }
 function renderStatic() {
   document.title = t('doc_title');
@@ -488,16 +531,14 @@ function renderStatic() {
   if (!giveUpArmed) $('#bGiveUp').textContent = t('give_up');
   $('#bMute').textContent = muted ? t('sound_off') : t('sound_on');
   $('#bBadges').textContent = SHOW_BADGES ? t('badges_on') : t('badges_off'); $('#bBadges').dataset.tip = t('tip_badges');
-  $('#bLang').textContent = t('lang_other'); $('#bLang').dataset.tip = t('tip_lang');
   $('#bMenu').textContent = t('m_menu');
-  $('#bColors').textContent = COLOR_MODE === 'classic' ? t('colors_classic') : t('colors_type'); $('#bColors').dataset.tip = t('tip_colors');
   $('#peekBack').textContent = t('back');
 }
 function renderHUD() {
   renderStatic();
   const e = G.enc;
   if (e) {
-    $('#hTitle').innerHTML = `<div class="eyebrow">${(G.training ? t('training') + ' · ' : '') + t('eyebrow_hud', { a: e.ante, k: e.kind + 1 })}</div><div class="hname">${esc(encName(e))}</div><div class="hmate">${t('level_line', { n: e.P.n, r: e.P.rating })}</div>${e.boss ? `<div class="hmod">${esc(L(e.boss.desc))}</div>` : ''}`;
+    $('#hTitle').innerHTML = `<div class="eyebrow">${(G.training ? t('training') + ' · ' : '') + t('eyebrow_hud', { a: e.ante, k: e.kind + 1 })}</div><div class="hname">${esc(encName(e))}</div><div class="hmate">${e.P ? t(e.P.gen ? 'gen_line' : 'level_line', { n: e.P.n, r: e.P.rating }) : t('gen_pending')}</div>${e.boss ? `<div class="hmod">${esc(L(e.boss.desc))}</div>` : ''}`;
     const left = Math.max(0, G.limit - G.used);
     $('#hMoves').textContent = left; $('#hMovesOf').textContent = t('of', { n: G.limit });
     $('#hMovesBox').classList.toggle('low', G.mode === 'play' && left <= 2);
@@ -573,7 +614,7 @@ function saveRun(screen) {
   profile.run = {
     screen, training: G.training, uid, army: G.army, gold: G.gold, relics: G.relics, cons: G.cons, encIndex: G.encIndex,
     wins: G.wins, skipped: G.skipped, usedPz: [...G.usedPz], upgrades: G.upgrades || 0, shop: screen === 'shop' ? G.shop : null,
-    encs: G.anteEncs.map(e => ({ ante: e.ante, kind: e.kind, boss: e.boss ? e.boss.id : null, rec: e.P.rec, chains: e.chains, limit: e.limit, reward: e.reward }))
+    encs: G.anteEncs.map(e => ({ ante: e.ante, kind: e.kind, boss: e.boss ? e.boss.id : null, rec: e.P ? e.P.rec : null, chains: e.chains, limit: e.limit, reward: e.reward }))
   };
   saveProfile();
 }
@@ -581,12 +622,17 @@ function continueRun() {
   const r = profile.run; if (!r) return;
   uid = r.uid; G.training = r.training; G.army = r.army; G.gold = r.gold; G.relics = r.relics; G.cons = r.cons; G.encIndex = r.encIndex;
   G.wins = r.wins; G.skipped = r.skipped; G.usedPz = new Set(r.usedPz); G.upgrades = r.upgrades; setPromoRank(7);
-  G.anteEncs = r.encs.map(e => ({ ante: e.ante, kind: e.kind, boss: BOSSES.find(b => b.id === e.boss) || null, P: Object.assign(parsePuzzle(e.rec), { rec: e.rec }), chains: e.chains, limit: e.limit, reward: e.reward }));
+  G.anteEncs = r.encs.map(e => {
+    const enc = { ante: e.ante, kind: e.kind, boss: BOSSES.find(b => b.id === e.boss) || null, P: null, chains: e.chains, limit: e.limit, reward: e.reward };
+    if (e.rec) setEncPuzzle(enc, e.rec, e); else awaitGenerated(enc);
+    return enc;
+  });
+  prefetchAnte(G.anteEncs[0].ante + 1);
   G.mode = 'select'; hudL.hidden = hudR.hidden = false;
   if (r.screen === 'shop' && r.shop) { G.enc = G.anteEncs[Math.max(0, G.encIndex - 1) % 3]; G.shop = r.shop; G.mode = 'shop'; G.rerender = renderShop; renderShop(); }
   else showSelect();
 }
-const langBtn = () => `<button class="btn ghost small" data-act="title" type="button">${t('m_menu')}</button><button class="btn ghost small" data-act="lang" type="button" data-tip="${esc(t('tip_lang'))}">${t('lang_other')}</button>`;
+const langBtn = () => `<button class="btn ghost small" data-act="title" type="button">${t('m_menu')}</button>`;
 function demoBoard() {
   const b = new Array(64).fill(null); let k = 900;
   const put = (i, tp, s) => { const mv = BASE[tp].slice(); b[i] = { s, t: tp, mv, hp: 1, mhp: 1, fz: 0, u: true, v: valOf(mv), k: k++ }; };
@@ -603,6 +649,11 @@ function newRun(training = false) {
 function showSelect() {
   G.mode = 'select'; setStatus(null); G.sel = -1; G.targeting = null; G.lastMove = null; G.hover = -1;
   const enc = G.anteEncs[G.encIndex % 3]; G.enc = enc;
+  if (!enc.P) {
+    hudL.hidden = hudR.hidden = false; renderHUD();
+    G.rerender = renderGenWait; renderGenWait();
+    return;
+  }
   G.board = buildBoard(enc); G.limit = enc.limit + (has('hourglass') ? 2 : 0); G.used = 0;
   clearMeshes(); syncMeshes(G.board); refreshMarks(); dropIn();
   renderHUD();
@@ -614,7 +665,9 @@ function renderSelect() {
   const cards = G.anteEncs.map((e, ix) => {
     const state = ix < cur ? 'done' : ix === cur ? 'cur' : 'next';
     const lim = e.limit + (has('hourglass') ? 2 : 0);
-    let body = `<div class="kv"><span>${t('mate_in', { n: '' }).trim()}</span><b class="gold">${e.P.n}</b></div><div class="kv"><span>${t('limit')}</span><b>${lim}</b></div><div class="kv"><span>${t('reward')}</span><b class="gold">$${e.reward}</b></div><div class="kv"><span>${t('rating')}</span><b>${e.P.rating}</b></div>`;
+    let body = !e.P ? `<div class="kv"><span>${t('reward')}</span><b class="gold">$${e.reward}</b></div><p class="muted">${t('gen_pending')}</p>`
+      : `<div class="kv"><span>${t('mate_in', { n: '' }).trim()}</span><b class="gold">${e.P.n}</b></div><div class="kv"><span>${t('limit')}</span><b>${lim}</b></div><div class="kv"><span>${t('reward')}</span><b class="gold">$${e.reward}</b></div><div class="kv"><span>${t(e.P.gen ? 'rating_gen' : 'rating')}</span><b>${e.P.gen ? '~' : ''}${e.P.rating}</b></div>`;
+    if (e.P && e.P.gen) body += `<div class="gen-tag">${t('gen_tag')}</div>`;
     if (e.boss) body += `<div class="boss-mod">${esc(L(e.boss.desc))}</div>`;
     if (state === 'cur') {
       body += miniBoard(e);
@@ -623,6 +676,12 @@ function renderSelect() {
     return `<div class="card blind k${e.kind} ${state}"><div class="band">${t('tier')[e.kind]}</div><h3>${esc(encName(e))}</h3>${body}</div>`;
   }).join('');
   showOverlay(`<div class="scr-head"><div class="eyebrow">${(G.training ? t('training') + ' · ' : '') + t('eyebrow_sel', { a: enc.ante, w: G.wins, g: G.gold })}</div><h2>${t('choose')}</h2>${langBtn()}</div><div class="cards">${cards}</div>`);
+}
+function renderGenWait() {
+  showOverlay(`<div class="scr-head"><div class="eyebrow">${t('eyebrow_hud', { a: G.enc.ante, k: G.enc.kind + 1 })}</div><h2>${t('gen_wait_title')}</h2></div>
+    <div class="gen-wait" aria-hidden="true">${['K', 'Q', 'R', 'B', 'N', 'P'].map((tp, i) => `<span style="animation-delay:${i * .12}s">${gl(tp, i % 2 ? 'b' : 'w')}</span>`).join('')}</div>
+    <p class="sub">${t('gen_wait_sub')}</p>
+    <div class="row-btns">${langBtn()}</div>`);
 }
 function miniBoard(enc) {
   const b0 = buildBoard(enc); const b = applyMove(b0, enc.P.init); const lm = enc.P.init;
@@ -676,7 +735,7 @@ async function executeMove(m, side) {
     if (tok !== G.token) return null;
     SFX.bounce(); shake(.006, .18); flashFx(.18, 0xff8060);
     burst(sqPos(m.t).setY(.8), [0xe8483b, 0xffffff], 10, 1.6, 2);
-    floatText(m.t, '−1 ♥', '#ff6a5c');
+    floatText(m.t, '−1 ♥', '#fff3d6');
   } else {
     if (mesh) await hop(mesh, m.f, m.t, mover.t === 'N');
     if (tok !== G.token) return null;
@@ -759,7 +818,7 @@ async function winLevel(kind) {
   G.gold += total; G.wins++;
   { const lm = G.lastMove, mater = lm && G.board[lm.t] ? G.board[lm.t].t : null;
     track('win', { training: G.training, result: kind, kind: e.kind, boss: e.boss ? e.boss.id : null, exact: !!exact, gold: total, wins: G.wins,
-      mater, theme: kind === 'mate' && lm ? mateTheme(G.board, lm) : null, lastMove: G.used >= G.limit, hintsUsed: G.hintsUsed }); }
+      mater, theme: kind === 'mate' && lm ? mateTheme(G.board, lm) : null, lastMove: G.used >= G.limit, hintsUsed: G.hintsUsed, generated: !!e.P.gen }); }
   renderHUD();
   const data = { kind, used: G.used, limit: G.limit, unused, interest, exact, total, name: encName(e), reward: e.reward };
   G.rerender = () => renderWin(data, false); renderWin(data, true);
@@ -1012,8 +1071,19 @@ function renderShop() {
       <div class="shop-col"><div class="lbl">${t('relics_h')}</div><div class="cards">${s.relics.map((o, i) => offerCard(o, 'relics', i)).join('') || `<p class="sub">${t('sold_out')}</p>`}</div></div>
       <div class="shop-col"><div class="lbl">${t('cons_h')}</div><div class="cards">${s.cons.map((o, i) => offerCard(o, 'cons', i)).join('')}</div></div>
     </div>
+    ${G.relics.length ? `<div class="shop-col"><div class="lbl">${t('sell_title')}</div><div class="sell-list">${G.relics.map(id => `<div class="sell-row" data-tip="${esc(relicTip(id))}">${img(id, '')}<span>${esc(L(RELICS[id].name))}</span><button class="btn green small" type="button" data-sell="${id}">${t('sell_btn', { n: sellPrice(id) })}</button></div>`).join('')}</div></div>` : ''}
     <div class="shop-col"><div class="lbl">${t('army_hover')}</div><div class="chips">${chips}</div></div>
     <div class="row-btns"><button class="btn green" type="button" data-act="reroll" ${G.gold < s.reroll ? 'disabled' : ''}>${t('reroll', { n: s.reroll })}</button><button class="btn red" type="button" data-act="leaveShop">${t('next')}</button></div>`);
+}
+const sellPrice = id => Math.max(1, Math.floor(RELICS[id].cost / 2));
+function sellRelic(id) {
+  const ix = G.relics.indexOf(id); if (ix < 0) return;
+  if (id === 'prism' && G.cons.length > 2) { toast(t('sell_prism_block')); return; }
+  const price = sellPrice(id);
+  G.relics.splice(ix, 1); G.gold += price;
+  toast(t('toast_sold', { name: L(RELICS[id].name), n: price })); SFX.coin();
+  track('sell', { training: G.training });
+  renderShop(); saveRun('shop');
 }
 function buy(row, ix) {
   const o = G.shop[row][ix]; if (!o || o.sold || G.gold < o.cost) return;
@@ -1028,7 +1098,7 @@ function buy(row, ix) {
     case 'relic': G.relics.push(o.id); track('relics', { count: G.relics.length, training: G.training }); toast(t('toast_relic', { name: L(RELICS[o.id].name) })); break;
     case 'cons': G.cons.push(o.id); break;
   }
-  SFX.buy(); flashFx(.15, 0xf3b53c); renderShop();
+  SFX.buy(); flashFx(.15, 0xf3b53c); renderShop(); saveRun('shop');
 }
 
 /* ============================== input ============================== */
@@ -1094,7 +1164,6 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyZ') trainUndo();
   if (e.key === 'Escape') { if (!$('#peekBack').hidden) $('#peekBack').click(); else deselect(); }
   if (e.code === 'KeyB') setBadges(!SHOW_BADGES);
-  if (e.code === 'KeyC') setColors(COLOR_MODE === 'classic' ? 'type' : 'classic');
 });
 
 document.addEventListener('click', e => {
@@ -1115,6 +1184,7 @@ document.addEventListener('click', e => {
     return;
   }
   const b = e.target.closest('[data-buy]'); if (b) { const [row, ix] = b.dataset.buy.split(':'); buy(row, +ix); return; }
+  const sl = e.target.closest('[data-sell]'); if (sl) { sellRelic(sl.dataset.sell); return; }
   const c = e.target.closest('[data-cons]'); if (c) { useCons(+c.dataset.cons); return; }
   const arm = e.target.closest('[data-arm]');
   if (arm && G.mode === 'play' && !G.busy) { const i = G.board.findIndex(p => p && p.id === +arm.dataset.arm); if (i >= 0) selectSq(i); }
@@ -1130,19 +1200,6 @@ $('#bGiveUp').addEventListener('click', () => {
 });
 $('#bMute').addEventListener('click', () => { muted = !muted; profile.settings.sound = !muted; saveProfile(); $('#bMute').textContent = muted ? t('sound_off') : t('sound_on'); });
 $('#bBadges').addEventListener('click', () => setBadges(!SHOW_BADGES));
-function setColors(mode) {
-  COLOR_MODE = mode;
-  profile.settings.colors = mode; saveProfile();
-  for (const m of meshes.values()) {
-    const ud = m.userData; ud.baseColor = new THREE.Color(pieceHex(ud.t, ud.s)).getHex(); ud.decoKey = '';
-    if (ud.badge) ud.badge.material = badgeMat(ud.t, ud.s);
-  }
-  if (G.board) syncMeshes(G.board);
-  renderStatic(); if (!hudL.hidden) renderHUD();
-  if (G.rerender && !ov.hidden) G.rerender();
-}
-$('#bColors').addEventListener('click', () => setColors(COLOR_MODE === 'classic' ? 'type' : 'classic'));
-$('#bLang').addEventListener('click', () => setLang(LANG === 'ru' ? 'en' : 'ru'));
 $('#bHint').addEventListener('click', askHint);
 $('#bHintPlay').addEventListener('click', playHint);
 $('#bUndo').addEventListener('click', trainUndo);
@@ -1161,7 +1218,6 @@ function applySettings(key) {
   if (!key || key === 'lang') { if (st.lang && st.lang !== LANG) setLang(st.lang); }
   if (!key || key === 'sound' || key === 'volume') { muted = !st.sound; VOLUME = st.volume; }
   if (!key || key === 'badges') setBadges(st.badges);
-  if (!key || key === 'colors') { if (st.colors !== COLOR_MODE) setColors(st.colors); }
   if (!key || key === 'crt') { CRT_ON = !!st.crt; postMat.uniforms.crt.value = CRT_ON ? 1 : 0; }
   if (key === 'fullscreen' || (!key && st.fullscreen)) applyFullscreen(!!st.fullscreen);
   renderStatic();
@@ -1232,4 +1288,4 @@ export async function boot() {
   await showSplash();
   showMenu();
 }
-window.__LG = { G, play: m => playerMove(m), askHint, findHintMove, explainMove, legal, applyMove, aiChoose, parsePuzzle, BANK, setLang, inCheck, hasLegal, profile };
+window.__LG = { G, jumpToAnte: a => { G.encIndex = (a - 1) * 3; newAnte(); showSelect(); }, shop: () => { advanceEnc(); showShop(); }, play: m => playerMove(m), askHint, findHintMove, explainMove, legal, applyMove, aiChoose, parsePuzzle, BANK, setLang, inCheck, hasLegal, profile };

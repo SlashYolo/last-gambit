@@ -37,7 +37,7 @@ export function showSplash() {
 }
 
 /* ---------- main menu ---------- */
-let confirmNewUntil = 0;
+let confirmNewUntil = 0, confirmFor = '';
 export function showMenu() {
   api.enterMenu();
   api.setRerender(renderMenu);
@@ -56,8 +56,8 @@ function renderMenu() {
       <div class="menu-grid">
         <nav class="menu-btns" aria-label="${t('m_menu')}">
           ${run ? `<button class="btn gold menu-btn" data-act="continue" type="button">${t('m_continue')}<small>${contSub}</small></button>` : ''}
-          <button class="btn red menu-btn" data-act="m-new" type="button">${t('m_new')}${confirming ? `<small>${t('m_confirm_new')}</small>` : ''}</button>
-          <button class="btn violet menu-btn" data-act="m-train" type="button">${t('m_train')}</button>
+          <button class="btn red menu-btn" data-act="m-new" type="button">${t('m_new')}${confirming && confirmFor === 'run' ? `<small>${t('m_confirm_new')}</small>` : ''}</button>
+          <button class="btn violet menu-btn" data-act="m-train" type="button">${t('m_train')}${confirming && confirmFor === 'train' ? `<small>${t('m_confirm_new')}</small>` : ''}</button>
           <div class="menu-row">
             <button class="btn ghost" data-act="m-how" type="button">${t('m_how')}</button>
             <button class="btn ghost" data-act="m-ach" type="button">${t('m_ach')} <span class="pill">${unlockedCount()}/${ACHIEVEMENTS.length}</span></button>
@@ -66,10 +66,7 @@ function renderMenu() {
             <button class="btn ghost" data-act="m-stats" type="button">${t('m_stats')}</button>
             <button class="btn ghost" data-act="m-settings" type="button">${t('m_settings')}</button>
           </div>
-          <div class="menu-row">
-            <button class="btn ghost" data-act="lang" type="button">${t('lang_other')}</button>
-            ${isDesktop ? `<button class="btn ghost" data-act="m-quit" type="button">${t('m_quit')}</button>` : ''}
-          </div>
+          ${isDesktop ? `<button class="btn ghost" data-act="m-quit" type="button">${t('m_quit')}</button>` : ''}
         </nav>
       </div>
       <p class="menu-progress">${progress}</p>
@@ -77,7 +74,8 @@ function renderMenu() {
     </div>`);
 }
 function startNew(training) {
-  if (profile.run && Date.now() > confirmNewUntil) { confirmNewUntil = Date.now() + 4000; renderMenu(); setTimeout(() => { if (api.isMenu()) renderMenu(); }, 4100); return; }
+  const which = training ? 'train' : 'run';
+  if (profile.run && (Date.now() > confirmNewUntil || confirmFor !== which)) { confirmNewUntil = Date.now() + 6000; confirmFor = which; renderMenu(); setTimeout(() => { if (api.isMenu()) renderMenu(); }, 6100); return; }
   confirmNewUntil = 0;
   api.newRun(training);
 }
@@ -140,7 +138,6 @@ function showSettings() {
       <div class="set-row"><span>${t('set_lang')}</span>${seg('lang', [['ru', 'Русский'], ['en', 'English']])}</div>
       <div class="set-row"><span>${t('set_sound')}</span>${onoff('sound')}</div>
       <div class="set-row"><label for="setVol">${t('set_volume')}</label><input id="setVol" type="range" min="0" max="100" step="5" value="${Math.round(st.volume * 100)}"></div>
-      <div class="set-row"><span>${t('set_colors')}</span>${seg('colors', [['type', t('set_colors_type')], ['classic', t('set_colors_classic')]])}</div>
       <div class="set-row"><span>${t('set_badges')}</span>${onoff('badges')}</div>
       <div class="set-row"><span>${t('set_crt')}<small>${t('set_crt_note')}</small></span>${onoff('crt')}</div>
       <div class="set-row"><span>${t('set_full')}</span>${onoff('fullscreen')}</div>

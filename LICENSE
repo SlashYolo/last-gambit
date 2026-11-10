@@ -30,6 +30,6 @@ used under its own terms:
   released into the public domain under Creative Commons CC0.
 - Three.js (https://threejs.org), MIT License, Copyright (c) 2010-2021 three.js
   authors. Bundled with the game.
-- Fonts "Press Start 2P" (CodeMan38) and "Tiny5" (Stefan Schmidt), SIL Open
-  Font License 1.1, bundled via the @fontsource packages.
+- Font "Press Start 2P" (CodeMan38), SIL Open Font License 1.1, bundled via
+  the @fontsource package.
 - Tauri (https://tauri.app), MIT / Apache-2.0, used for the desktop app.

@@ -6,7 +6,7 @@ const IS_TAURI = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in windo
 
 export const defaults = () => ({
   v: 1,
-  settings: { lang: null, sound: true, volume: 0.8, badges: true, colors: 'type', crt: true, fullscreen: false },
+  settings: { lang: null, sound: true, volume: 0.8, badges: true, crt: true, fullscreen: false },
   stats: {
     runs: 0, solved: 0, mates: 0, stalemates: 0, exact: 0, bestAnte: 0, bestWins: 0, goldEarned: 0,
     promotions: 0, bosses: 0, trainingSolved: 0, hints: 0, playSeconds: 0
@@ -52,7 +52,6 @@ function migrateLegacy() {
     if (best) { d.stats.bestAnte = best.ante || 0; d.stats.bestWins = best.wins || 0; }
     if (lang) d.settings.lang = lang;
     if (localStorage.getItem('last-gambit-badges') === '0') d.settings.badges = false;
-    if (localStorage.getItem('last-gambit-colors') === 'classic') d.settings.colors = 'classic';
     return d;
   } catch (e) { return null; }
 }
