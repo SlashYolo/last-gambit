@@ -6,7 +6,7 @@ self.onmessage = e => {
   const { id, ante, kind } = e.data;
   const base = genSpec(ante, kind);
   const attempts = [
-    [base, 9000],
+    [base, 14000],
     [{ ...base, minN: 2, pieces: Math.max(1, base.pieces - 1) }, 6000],
     [{ ...base, minN: 2, maxN: 2, lives: 0 }, 6000]
   ];

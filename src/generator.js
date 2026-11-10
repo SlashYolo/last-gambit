@@ -12,8 +12,8 @@ const KITS = [['Q', 'R'], ['Q', 'N'], ['R', 'R'], ['R', 'B'], ['Q', 'B'], ['R', 
 export function genSpec(ante, kind) {
   const a = Math.max(0, ante - 4);
   return {
-    minN: kind === 2 ? 3 : 2,
-    maxN: kind === 0 ? 2 : 3,
+    minN: kind === 2 || ante >= 9 || (ante >= 7 && kind === 1) ? 3 : 2,
+    maxN: kind === 0 && ante < 7 ? 2 : 3,
     pieces: Math.min(5, 1 + kind + Math.floor(a / 2)),
     pawns: Math.min(5, 2 + Math.floor(a / 3)),
     lives: ante >= 6 ? Math.min(3, 1 + Math.floor((ante - 6) / 2)) : 0,

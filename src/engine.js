@@ -104,7 +104,7 @@ const hasLegal = (b, s) => legal(b, s, true).length > 0;
 const inCheck = (b, s) => { const k = kingSq(b, s); return k >= 0 && attacked(b, k, opp(s)); };
 
 /* ---------- AI ---------- */
-let NODES = 0; const NODE_LIMIT = 90000;
+let NODES = 0, NODE_LIMIT = 90000, AI_DL = Infinity, AI_ABORT = false;
 function orderMoves(moves, b) {
   for (const m of moves) m.o = m.c ? (b[m.t].v * 10 - b[m.f].v + 5) : 0;
   moves.sort((a, c) => c.o - a.o);
@@ -133,7 +133,8 @@ function evalB(b) {
 function onlyKing(b, s) { for (let i = 0; i < 64; i++) { const p = b[i]; if (p && p.s === s && p.t !== 'K') return false; } return true; }
 function search(b, depth, alpha, beta, side, ml) {
   NODES++;
-  if (depth === 0 || NODES > NODE_LIMIT) {
+  if ((NODES & 255) === 0 && performance.now() > AI_DL) AI_ABORT = true;
+  if (depth === 0 || NODES > NODE_LIMIT || AI_ABORT) {
     if (side === 'b') { if ((inCheck(b, 'b') || onlyKing(b, 'b')) && !hasLegal(b, 'b')) return -100000; }
     else if (inCheck(b, 'w') && !hasLegal(b, 'w')) return 100000;
     return evalB(b);
@@ -158,18 +159,35 @@ function search(b, depth, alpha, beta, side, ml) {
   }
   return best;
 }
-function aiChoose(b, enc, movesLeft) {
+/* Opponent move choice. strength 0 (antes 1–6), 1 (antes 7–8) and 2 (ante 9+) search deeper,
+   with less randomness and a longer time budget. Iterative deepening keeps the best fully searched move,
+   so the time limit never leaves the AI with a half-finished answer. */
+const AI_LEVELS = [
+  { extra: 0, jitter: 0.2, ms: 700, nodes: 90000 },
+  { extra: 1, jitter: 0.05, ms: 1100, nodes: 260000 },
+  { extra: 2, jitter: 0, ms: 1700, nodes: 600000 }
+];
+function aiChoose(b, enc, movesLeft, strength = 0) {
   const moves = legal(b, 'b'); if (!moves.length) return null;
+  const lv = AI_LEVELS[Math.max(0, Math.min(2, strength))];
   const total = b.reduce((n, p) => n + (p ? 1 : 0), 0);
-  const depth = total <= 10 ? 4 : 3;
-  const jit = 0.2;
-  NODES = 0; orderMoves(moves, b);
-  let best = -Infinity, bm = moves[0];
-  for (const m of moves) {
-    const s = search(applyMove(b, m), depth - 1, best === -Infinity ? -1e9 : best - jit, 1e9, 'w', movesLeft) + Math.random() * jit;
-    if (s > best) { best = s; bm = m; }
+  const maxDepth = (total <= 10 ? 4 : 3) + lv.extra;
+  orderMoves(moves, b);
+  NODE_LIMIT = lv.nodes; AI_DL = performance.now() + lv.ms; AI_ABORT = false;
+  let bestMove = moves[0];
+  for (let d = 2; d <= maxDepth; d++) {
+    NODES = 0;
+    let best = -Infinity, bm = null;
+    for (const m of [bestMove, ...moves.filter(x => x !== bestMove)]) {
+      const s = search(applyMove(b, m), d - 1, best === -Infinity ? -1e9 : best - lv.jitter, 1e9, 'w', movesLeft) + Math.random() * lv.jitter;
+      if (AI_ABORT) break;
+      if (s > best) { best = s; bm = m; }
+    }
+    if (AI_ABORT) { if (d === 2 && bm) bestMove = bm; break; }
+    bestMove = bm;
   }
-  return bm;
+  AI_DL = Infinity; AI_ABORT = false; NODE_LIMIT = 90000;
+  return bestMove;
 }
 
 /* ============================== puzzle bank ============================== */

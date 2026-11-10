@@ -70,6 +70,24 @@ const BOSSES = [
   { id: 'chains', name: N2('Оковы', 'Shackles'), desc: N2('Две ваши фигуры скованы на всю задачу: не ходят, но держат клетки', 'Two of your pieces are chained for the whole puzzle: they cannot move but still control squares') },
   { id: 'blind', name: N2('Слепая партия', 'Blindfold'), desc: N2('Подсказки ходов скрыты: ищите решение сами', 'Move hints are hidden: find the solution yourself') }
 ];
+/* Vouchers: permanent run-wide upgrades, one offered per ante. A tier-2 voucher appears only after its tier-1 base. */
+const V = (tier, req, ru, en, dru, den) => ({ tier, req, name: { ru, en }, desc: { ru: dru, en: den }, cost: 10 });
+const VOUCHERS = {
+  overstock: V(1, null, 'Склад', 'Overstock', 'В лавке на одно улучшение армии больше', 'One more army upgrade in the shop'),
+  overstock2: V(2, 'overstock', 'Гипермаркет', 'Hypermarket', 'И ещё одно улучшение армии в лавке', 'Yet another army upgrade in the shop'),
+  reroll: V(1, null, 'Оптовик', 'Wholesaler', 'Обновление лавки на $2 дешевле', 'Shop rerolls cost $2 less'),
+  reroll2: V(2, 'reroll', 'Скупщик', 'Bulk Buyer', 'Обновление лавки ещё на $2 дешевле', 'Shop rerolls cost another $2 less'),
+  clearance: V(1, null, 'Распродажа', 'Clearance Sale', 'Всё в лавке на 25% дешевле', 'Everything in the shop is 25% off'),
+  clearance2: V(2, 'clearance', 'Ликвидация', 'Liquidation', 'Скидка в лавке вырастает до 50%', 'The shop discount grows to 50%'),
+  time: V(1, null, 'Запас времени', 'Time Reserve', '+1 ход в каждой задаче', '+1 move in every puzzle'),
+  time2: V(2, 'time', 'Хронометр', 'Chronometer', 'Ещё +1 ход в каждой задаче', 'Another +1 move in every puzzle'),
+  seed: V(1, null, 'Посевные', 'Seed Money', 'После победы +$1 за каждые $5 в кармане, до $5', 'After a win, +$1 per $5 you hold, up to $5'),
+  seed2: V(2, 'seed', 'Сбережения', 'Savings', 'Проценты после победы — до $10', 'Interest after a win goes up to $10'),
+  satchel: V(1, null, 'Сумка', 'Satchel', '+1 слот для расходников', '+1 consumable slot'),
+  satchel2: V(2, 'satchel', 'Рюкзак', 'Backpack', 'Ещё +1 слот для расходников', 'Another +1 consumable slot'),
+  vault: V(1, null, 'Хранилище', 'Vault', '+1 слот для реликвий', '+1 relic slot'),
+  vault2: V(2, 'vault', 'Сейф', 'Safe', 'Ещё +1 слот для реликвий', 'Another +1 relic slot')
+};
 const ARMY_START = [
   ['K', N2('Корона', 'Crown')], ['Q', N2('Гроза', 'Tempest')], ['R', N2('Бастион', 'Bastion')], ['R', N2('Цитадель', 'Citadel')],
   ['B', N2('Псалом', 'Psalm')], ['B', N2('Ладан', 'Incense')], ['N', N2('Гром', 'Thunder')], ['N', N2('Шквал', 'Squall')],
@@ -109,6 +127,8 @@ const ICON_ROWS = {
   bless: ['.rr.rr..', 'rrrrrrr.', 'rrwrrrr.', 'rwwwrrr.', 'rrwrrrr.', '.rrrrr..', '..rrr...', '...r....'],
   heart: ['........', '.rr.rr..', 'rwrrrrr.', 'rrrrrrr.', 'rrrrrrr.', '.rrrrr..', '..rrr...', '...r....'],
   snow: ['...c....', '.c.c.c..', '..ccc...', 'cccwccc.', '..ccc...', '.c.c.c..', '...c....', '........'],
+  ticket: ['yyyyyyyy', 'y.yyyy.y', 'yyyyyyyy', 'yykkkkyy', 'yyyyyyyy', 'yykkyyyy', 'y.yyyy.y', 'yyyyyyyy'],
+  ticket2: ['pppppppp', 'p.pppp.p', 'pppppppp', 'ppwwwwpp', 'pppppppp', 'ppwwpppp', 'p.pppp.p', 'pppppppp'],
   lock: ['..MMMM..', '.M....M.', '.M....M.', 'yyyyyyyy', 'yyykkyyy', 'yyykkyyy', 'yyyyyyyy', 'oooooooo']
 };
 const ICON_CANVAS = {}, ICON = {};
@@ -116,4 +136,4 @@ for (const k in ICON_ROWS) { ICON_CANVAS[k] = pixCanvas(ICON_ROWS[k]); ICON[k] =
 const img = (k, cls = 'ico') => `<img class="${cls}" src="${ICON[k]}" alt="">`;
 
 
-export { TNAME, MVNAME, UPS, RELICS, CONS, BOSSES, ARMY_START, ICON_CANVAS, ICON, img, pixCanvas };
+export { TNAME, MVNAME, UPS, RELICS, CONS, BOSSES, VOUCHERS, ARMY_START, ICON_CANVAS, ICON, img, pixCanvas };

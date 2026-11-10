@@ -57,13 +57,15 @@
 - **Жизни.** Если фигуру с несколькими жизнями бьют, она теряет одну жизнь и остаётся на месте.
 - **Свойства.** «Жажда» даёт +1 ход за каждое взятие, «Алчность» — +$1.
 - **Реликвии** меняют правила (держать можно до пяти, лишние продаются в лавке за полцены): «Песочные часы» дают +2 хода в каждой задаче, «Перо феникса» один раз спасает от поражения, «Утренний кофе» делает первый ход бесплатным.
+- **Ваучеры** — как в Balatro: раз в анте в лавке появляется постоянное улучшение на весь забег за $10. Их 14, по две ступени: «Склад» и «Гипермаркет» добавляют улучшения в лавку, «Оптовик» удешевляет обновление, «Распродажа» даёт скидку 25–50%, «Запас времени» добавляет ход в каждой задаче, «Посевные» платят проценты с накоплений, «Сумка» и «Хранилище» добавляют слоты расходников и реликвий.
+- **Обновление лавки** стоит $5 и дорожает на $1 с каждым обновлением; в следующем визите снова $5.
 - **Расходники** выручают в трудную минуту: «Лёд» замораживает фигуру врага, «Молот» разбивает его пешку, «Перемотка» отменяет ход.
 
 ## Прогресс и достижения
 
 Забег сохраняется автоматически после каждого хода: закройте игру хоть посреди задачи, и «Продолжить» вернёт вас ровно к той же позиции и тому же счётчику ходов. Переиграть неудачную партию, выйдя в меню, нельзя.
 
-В меню есть 27 достижений: от первого мата до анте 8, мата конём, спёртого мата и мата последним доступным ходом. Там же статистика: лучший анте, решённые задачи, точные решения, побеждённые боссы, время в партиях. Обучение не влияет на рекорды и достижения забега, у него свои два достижения.
+В меню есть 28 достижений: от первого мата до анте 8, мата конём, спёртого мата и мата последним доступным ходом. Там же статистика: лучший анте, решённые задачи, точные решения, побеждённые боссы, время в партиях. Обучение не влияет на рекорды и достижения забега, у него свои два достижения.
 
 В настройках можно выбрать язык, громкость, значки над фигурами, полноэкранный режим и выключить эффект старого экрана.
 
@@ -97,6 +99,8 @@
 С каждым из трёх анте задачи берутся всё ближе к верху рейтинга, а за один забег задачи не повторяются.
 
 **С анте 4 позиции генерируются случайно**, так что задачи не кончаются и не повторяются. Генератор расставляет фигуры вокруг вражеского короля, делает первый ход противника и принимает позицию, только если перебор доказал вынужденный мат ровно за нужное число ходов при любой защите. Лёгкая и средняя задачи — мат в 2–3, босс — мат в 3. С ростом анте защитников становится больше, а с анте 6 у части вражеских фигур появляются лишние жизни. Позиции ищутся в фоновом потоке заранее, ещё во время предыдущего анте.
+
+**Поздние анте сложнее.** С анте 7 компьютер считает глубже и почти не ошибается в защите, а средняя задача — мат в 3; с анте 8 запасных ходов нет, лимит равен длине решения; с анте 9 противник играет в полную силу, и мат в 3 нужен во всех задачах.
 
 ## Разработка
 
@@ -140,7 +144,7 @@ npm run build:single # dist-single/index.html — вся игра в одном 
 
 **Training mode** adds a coach. Hints come in two steps: first the idea, then the move with an explanation. The coach comments on the opponent's replies and warns you when a move throws away a forced mate. Undo is free, failed puzzles can be retried, and records are not saved.
 
-**Download** the installer for Windows, macOS or Linux from [Releases](../../releases/latest) (about 5–7 MB, works offline), or play the browser version on GitHub Pages. From ante 4 the puzzles are random positions with a mate proven by search, so the game never runs out of puzzles. Spare relics can be sold in the shop. Runs are saved after every move, so quitting mid-puzzle resumes the exact same position. Esc opens the pause menu, and holding the mouse wheel turns the board. The main menu has 27 achievements, lifetime statistics and settings. Switch to English in Settings on the main menu. Your pieces are cream, the opponent's are red, and a badge above each piece shows its type.
+**Download** the installer for Windows, macOS or Linux from [Releases](../../releases/latest) (about 5–7 MB, works offline), or play the browser version on GitHub Pages. From ante 4 the puzzles are random positions with a mate proven by search, so the game never runs out of puzzles. Spare relics can be sold in the shop, and each ante offers a Balatro-style voucher: a permanent upgrade for the whole run. Rerolls start at $5 and rise by $1 each. From ante 7 the opponent defends harder and the puzzles get tighter. Runs are saved after every move, so quitting mid-puzzle resumes the exact same position. Esc opens the pause menu, and holding the mouse wheel turns the board. The main menu has 28 achievements, lifetime statistics and settings. Switch to English in Settings on the main menu. Your pieces are cream, the opponent's are red, and a badge above each piece shows its type.
 
 **Building from source:** `npm install`, then `npm run dev` for the browser or `npm run app:build` for a desktop installer (needs Rust). Push a `v*` tag and GitHub Actions builds installers for all three systems.
 

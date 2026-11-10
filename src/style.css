@@ -251,10 +251,10 @@ button.slot:hover{transform:translateY(-2px) rotate(-3deg)}
 .shop-title{display:flex;flex-direction:column;gap:4px;margin-right:auto}
 .shop-title h2{margin:0;font-size:18px;text-align:left}
 .shop-actions{display:flex;gap:8px;flex-wrap:wrap}
-.shop-rows{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.shop-rows{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 .shop-sec{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:0}
-.shop-sec .cards{gap:10px;flex-wrap:nowrap}
-.shop .card{width:150px;padding:7px;gap:5px;animation:none}
+.shop-sec .cards{gap:8px;flex-wrap:nowrap}
+.shop .card{width:136px;padding:6px;gap:5px;animation:none}
 .shop .card:hover{transform:translateY(-4px)}
 .shop .card .band{font-size:7px;padding:4px 5px}
 .shop .card .art{height:44px}
@@ -274,3 +274,8 @@ button.slot:hover{transform:translateY(-2px) rotate(-3deg)}
 .shop .sell-row img{width:24px;height:24px}
 @media (max-width:1100px){.shop-sec .cards{flex-wrap:wrap;justify-content:center}}
 #ov:has(.shop){background:rgba(5,7,11,.84)}
+
+/* ---------- vouchers ---------- */
+.k-voucher .band{background:linear-gradient(90deg,var(--gold),var(--violet));color:#1a0f2a}
+.shop .k-voucher{border-color:#5c4a14;box-shadow:0 5px 0 var(--line),0 0 0 2px var(--gold) inset}
+.gen-tag.ai{color:#ffb0a6;background:#2a1418}

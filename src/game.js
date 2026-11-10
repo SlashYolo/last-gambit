@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { STR, LANG, t, L, plural, setLanguage } from './i18n.js';
 import { BASE, GLY, valOf, hits, attacked, kingSq, applyMove, opp, legal, hasLegal, inCheck, evalB, aiChoose, sqName, parsePuzzle, setPromoRank, withDeadline, bLoses, searchMate, attackersOf, kingRing, mateTheme } from './engine.js';
-import { TNAME, MVNAME, UPS, RELICS, CONS, BOSSES, ARMY_START, ICON_CANVAS, ICON, img } from './content.js';
+import { TNAME, MVNAME, UPS, RELICS, CONS, BOSSES, VOUCHERS, ARMY_START, ICON_CANVAS, ICON, img } from './content.js';
 import BANK from '../data/puzzles.json';
 import { profile, saveProfile, isDesktop } from './storage.js';
 import { track } from './achievements.js';
@@ -419,7 +419,20 @@ const G = {
   st: null, rerender: null
 };
 const has = id => G.relics.includes(id);
-const consSlots = () => 2 + (has('prism') ? 1 : 0);
+const hasV = id => (G.vouchers || []).includes(id);
+const nV = (...ids) => ids.filter(hasV).length;
+const consSlots = () => 2 + (has('prism') ? 1 : 0) + nV('satchel', 'satchel2');
+const relicSlots = () => 5 + nV('vault', 'vault2');
+const bonusMoves = () => (has('hourglass') ? 2 : 0) + nV('time', 'time2');
+/* Shop prices after Clearance vouchers; rerolls start at $5 and rise by $1 per reroll within one shop visit. */
+const price = c => Math.max(1, Math.round(c * (1 - 0.25 * nV('clearance', 'clearance2'))));
+const rerollCost = () => Math.max(1, 5 + (G.shop ? G.shop.rerolls || 0 : 0) - 2 * nV('reroll', 'reroll2'));
+/* Opponent strength by ante: deeper and steadier search from ante 7, full strength from ante 9. */
+const aiStrength = ante => ante >= 9 ? 2 : ante >= 7 ? 1 : 0;
+function pickVoucher() {
+  const pool = Object.keys(VOUCHERS).filter(id => !hasV(id) && (!VOUCHERS[id].req || hasV(VOUCHERS[id].req)));
+  return pool.length ? pick(pool) : null;
+}
 const armyById = id => G.army.find(a => a.id === id);
 const nameOf = a => L(a.names);
 const mvOf = a => [...BASE[a.t], ...a.ups.filter(c => !BASE[a.t].includes(c))];
@@ -472,6 +485,7 @@ function setEncPuzzle(enc, rec, saved) {
   P.gen = P.id.startsWith('gen');
   let slack = Math.max(enc.kind === 2 ? 0 : 1, [3, 2, 2][enc.kind] - Math.floor((enc.ante - 1) / 2));
   if (enc.boss && enc.boss.id === 'haste') slack = 0;
+  if (enc.ante >= 8) slack = 0;
   if (enc.boss && enc.boss.id === 'chains') slack += 1;
   enc.chains = saved ? saved.chains : (enc.boss && enc.boss.id === 'chains'
     ? shuffle(P.board.map((p, i) => p && p.s === 'w' && p.t !== 'K' && !P.movers.has(i) ? i : -1).filter(i => i >= 0)).slice(0, 2) : []);
@@ -507,7 +521,7 @@ function buildBoard(enc) {
   for (const i of enc.chains) if (b[i] && b[i].s === 'w') b[i] = { ...b[i], ch: true };
   return b;
 }
-function newAnte() { const ante = Math.floor(G.encIndex / 3) + 1; G.anteEncs = [0, 1, 2].map(k => genEnc(ante, k)); prefetchAnte(ante + 1); }
+function newAnte() { const ante = Math.floor(G.encIndex / 3) + 1; G.anteEncs = [0, 1, 2].map(k => genEnc(ante, k)); G.anteVoucher = pickVoucher(); prefetchAnte(ante + 1); }
 function moveLabel(b, m) { const p = b[m.f]; return `${GLY[p.t]}︎ ${sqName(m.f)}→${sqName(m.t)}`; }
 
 /* ============================== UI helpers ============================== */
@@ -574,8 +588,10 @@ function renderHUD() {
   }
   $('#hGold').textContent = '$' + G.gold;
   if (G.gold >= 30) track('gold', { gold: G.gold, training: G.training });
-  $('#hRelLbl').textContent = t('relics_n', { n: G.relics.length });
-  $('#hRelics').innerHTML = G.relics.map(id => `<div class="slot" data-tip="${esc(relicTip(id))}">${img(id, '')}</div>`).join('') + '<div class="slot empty"></div>'.repeat(Math.max(0, 5 - G.relics.length));
+  $('#hRelLbl').textContent = t('relics_n', { n: G.relics.length, m: relicSlots() });
+  $('#hRelics').innerHTML = G.relics.map(id => `<div class="slot" data-tip="${esc(relicTip(id))}">${img(id, '')}</div>`).join('') + '<div class="slot empty"></div>'.repeat(Math.max(0, relicSlots() - G.relics.length));
+  const vb = $('#hVouchBlk'); vb.hidden = !(G.vouchers && G.vouchers.length);
+  if (!vb.hidden) { $('#hVouchLbl').textContent = t('vouchers_h'); $('#hVouch').innerHTML = G.vouchers.map(id => `<div class="slot" data-tip="${esc(L(VOUCHERS[id].name) + '|' + L(VOUCHERS[id].desc))}">${img(VOUCHERS[id].tier > 1 ? 'ticket2' : 'ticket', '')}</div>`).join(''); }
   $('#hCons').innerHTML = G.cons.map((id, ix) => `<button type="button" class="slot${G.targeting && G.targeting.ix === ix ? ' armed' : ''}" data-cons="${ix}" data-tip="${esc(consTip(id) + t('tip_cons_use'))}">${img(id, '')}</button>`).join('') + '<div class="slot empty"></div>'.repeat(Math.max(0, consSlots() - G.cons.length));
   const alive = new Set(G.board ? G.board.filter(p => p && p.id).map(p => p.id) : []);
   $('#armyLbl').textContent = t('army_n', { n: G.army.length });
@@ -650,6 +666,7 @@ function saveRun(screen, play = null) {
   profile.run = {
     play,
     screen, training: G.training, uid, army: G.army, gold: G.gold, relics: G.relics, cons: G.cons, encIndex: G.encIndex,
+    vouchers: G.vouchers || [], anteVoucher: G.anteVoucher || null,
     wins: G.wins, skipped: G.skipped, usedPz: [...G.usedPz], upgrades: G.upgrades || 0, shop: screen === 'shop' ? G.shop : null,
     encs: G.anteEncs.map(e => ({ ante: e.ante, kind: e.kind, boss: e.boss ? e.boss.id : null, rec: e.P ? e.P.rec : null, chains: e.chains, limit: e.limit, reward: e.reward }))
   };
@@ -659,6 +676,8 @@ function continueRun() {
   const r = profile.run; if (!r) return;
   uid = r.uid; G.training = r.training; G.army = r.army; G.gold = r.gold; G.relics = r.relics; G.cons = r.cons; G.encIndex = r.encIndex;
   G.wins = r.wins; G.skipped = r.skipped; G.usedPz = new Set(r.usedPz); G.upgrades = r.upgrades; setPromoRank(7);
+  G.vouchers = r.vouchers || []; G.anteVoucher = r.anteVoucher || null;
+  if (r.shop && r.shop.rerolls === undefined) r.shop.rerolls = 0;
   G.anteEncs = r.encs.map(e => {
     const enc = { ante: e.ante, kind: e.kind, boss: BOSSES.find(b => b.id === e.boss) || null, P: null, chains: e.chains, limit: e.limit, reward: e.reward };
     if (e.rec) setEncPuzzle(enc, e.rec, e); else awaitGenerated(enc);
@@ -682,7 +701,7 @@ function demoBoard() {
 function newRun(training = false) {
   uid = 1; G.training = training; track('runStart', { training });
   G.army = ARMY_START.map(([tp, nm]) => mkArmy(tp, nm));
-  G.gold = 4; G.relics = []; G.cons = ['sand']; G.encIndex = 0; G.wins = 0; G.enc = null; G.skipped = []; G.usedPz = new Set(); G.upgrades = 0; setPromoRank(7);
+  G.gold = 4; G.relics = []; G.cons = ['sand']; G.encIndex = 0; G.wins = 0; G.enc = null; G.skipped = []; G.usedPz = new Set(); G.upgrades = 0; G.vouchers = []; G.anteVoucher = null; setPromoRank(7);
   newAnte(); track('ante', { ante: 1, training }); hudL.hidden = hudR.hidden = false; showSelect();
 }
 function showSelect() {
@@ -693,7 +712,7 @@ function showSelect() {
     G.rerender = renderGenWait; renderGenWait();
     return;
   }
-  G.board = buildBoard(enc); G.limit = enc.limit + (has('hourglass') ? 2 : 0); G.used = 0;
+  G.board = buildBoard(enc); G.limit = enc.limit + bonusMoves(); G.used = 0;
   clearMeshes(); syncMeshes(G.board); refreshMarks(); dropIn();
   renderHUD();
   G.rerender = renderSelect; renderSelect();
@@ -703,10 +722,11 @@ function renderSelect() {
   const cur = G.encIndex % 3, enc = G.enc;
   const cards = G.anteEncs.map((e, ix) => {
     const state = ix < cur ? 'done' : ix === cur ? 'cur' : 'next';
-    const lim = e.limit + (has('hourglass') ? 2 : 0);
+    const lim = e.limit + bonusMoves();
     let body = !e.P ? `<div class="kv"><span>${t('reward')}</span><b class="gold">$${e.reward}</b></div><p class="muted">${t('gen_pending')}</p>`
       : `<div class="kv"><span>${t('mate_in', { n: '' }).trim()}</span><b class="gold">${e.P.n}</b></div><div class="kv"><span>${t('limit')}</span><b>${lim}</b></div><div class="kv"><span>${t('reward')}</span><b class="gold">$${e.reward}</b></div><div class="kv"><span>${t(e.P.gen ? 'rating_gen' : 'rating')}</span><b>${e.P.gen ? '~' : ''}${e.P.rating}</b></div>`;
     if (e.P && e.P.gen) body += `<div class="gen-tag">${t('gen_tag')}</div>`;
+    if (aiStrength(e.ante)) body += `<div class="gen-tag ai">${t(aiStrength(e.ante) > 1 ? 'ai_max' : 'ai_strong')}</div>`;
     if (e.boss) body += `<div class="boss-mod">${esc(L(e.boss.desc))}</div>`;
     if (state === 'cur') {
       body += miniBoard(e);
@@ -791,7 +811,7 @@ async function startLevel() {
   const enc = G.enc; G.token++; const tok = G.token;
   setPromoRank(has('crown') ? 6 : 7);
   G.board = buildBoard(enc);
-  G.limit = enc.limit + (has('hourglass') ? 2 : 0); G.used = 0; G.history = []; G.checksBonus = 0; G.coffeeUsed = false;
+  G.limit = enc.limit + bonusMoves(); G.used = 0; G.history = []; G.checksBonus = 0; G.coffeeUsed = false;
   G.lastMove = null; G.sel = -1; G.hover = -1; G.targeting = null; G.busy = true; G.mode = 'play'; G.rerender = null;
   G.lineIx = -1; G.forced = true; G.hint = null; G.coach = []; G.hintsUsed = 0;
   hideOverlay(); $('#peekBack').hidden = true;
@@ -888,7 +908,7 @@ async function playerMove(m) {
 }
 async function enemyTurn(tok) {
   setStatus('st_think', null, 'think'); await wait(320); if (tok !== G.token) return;
-  const m = aiChoose(G.board, G.enc, G.limit - G.used);
+  const m = aiChoose(G.board, G.enc, G.limit - G.used, aiStrength(G.enc.ante));
   if (!m) return winLevel('stalemate');
   await wait(60); if (tok !== G.token) return;
   const why = enemyWhy(G.board, m), lbl = moveLabel(G.board, m), wasOn = G.lineIx >= 0;
@@ -910,8 +930,9 @@ async function winLevel(kind) {
   setStatus(kind === 'mate' ? 'st_mate' : 'st_stale');
   const e = G.enc, unused = Math.max(0, G.limit - G.used);
   const interest = has('piggy') ? unused : Math.floor(unused / 2);
+  const seed = hasV('seed') ? Math.min(hasV('seed2') ? 10 : 5, Math.floor(G.gold / 5)) : 0;
   const exact = G.used <= e.P.n ? 2 : 0;
-  const total = e.reward + interest + exact;
+  const total = e.reward + interest + exact + seed;
   G.gold += total; G.wins++;
   { const lm = G.lastMove, mater = lm && G.board[lm.t] ? G.board[lm.t].t : null;
     track('win', { training: G.training, result: kind, kind: e.kind, boss: e.boss ? e.boss.id : null, exact: !!exact, gold: total, wins: G.wins,
@@ -919,7 +940,7 @@ async function winLevel(kind) {
   advanceEnc(); saveRun('won'); saveProfile(true);
   renderHUD();
   await wait(1100); if (tok !== G.token) return;
-  const data = { kind, used: G.used, limit: G.limit, unused, interest, exact, total, name: encName(e), reward: e.reward };
+  const data = { kind, used: G.used, limit: G.limit, unused, interest, exact, seed, total, name: encName(e), reward: e.reward };
   G.rerender = () => renderWin(data, false); renderWin(data, true);
   setTimeout(SFX.coin, 200); setTimeout(SFX.coin, 450); setTimeout(SFX.coin, 700);
 }
@@ -932,6 +953,7 @@ function renderWin(d, animate) {
       <div${st(.1)}><span>${esc(encName(G.enc))}</span><b>$${d.reward}</b></div>
       <div${st(.3)}><span>${t('spare', { n: d.unused })}${has('piggy') ? t('piggy') : ''}</span><b>$${d.interest}</b></div>
       ${d.exact ? `<div${st(.5)}><span>${t('exact')}</span><b>$${d.exact}</b></div>` : ''}
+      ${d.seed ? `<div${st(.6)}><span>${t('interest_v')}</span><b>$${d.seed}</b></div>` : ''}
       <div class="tot"${st(.7)}><span>${t('total')}</span><b>$${d.total}</b></div>
     </div>
     <div class="row-btns"><button class="btn gold" data-act="toShop" type="button">${t('to_shop')}</button>${langBtn()}</div>`);
@@ -1117,20 +1139,20 @@ function trainUndo() {
 function offerUpgrade() {
   const c = []; for (const a of G.army) for (const u of (UPS[a.t] || [])) if (!a.ups.includes(u[0])) c.push([a, u]);
   if (!c.length) return null; const [a, u] = pick(c);
-  return { kind: 'up', aid: a.id, code: u[0], title: u[1], desc: u[2], cost: rint(4, 6), t: a.t, key: 'up' + a.id + u[0] };
+  return { kind: 'up', aid: a.id, code: u[0], title: u[1], desc: u[2], cost: price(rint(4, 6)), t: a.t, key: 'up' + a.id + u[0] };
 }
 function offerLife() {
   const c = G.army.filter(a => a.t !== 'K' && a.mhp < 3); if (!c.length) return null; const a = pick(c);
-  return { kind: 'life', aid: a.id, cost: 3 + a.mhp * 2, t: a.t, key: 'life' + a.id };
+  return { kind: 'life', aid: a.id, cost: price(3 + a.mhp * 2), t: a.t, key: 'life' + a.id };
 }
 function offerPerk() {
   const c = []; for (const a of G.army) { if (!a.th) c.push([a, 'th']); if (!a.gr) c.push([a, 'gr']); }
   if (!c.length) return null; const [a, k] = pick(c);
-  return { kind: 'perk', aid: a.id, perk: k, cost: k === 'th' ? 5 : 4, t: a.t, key: k + a.id };
+  return { kind: 'perk', aid: a.id, perk: k, cost: price(k === 'th' ? 5 : 4), t: a.t, key: k + a.id };
 }
 function rollMain() {
   const out = [], keys = new Set(); let guard = 0;
-  while (out.length < 3 && guard++ < 60) {
+  while (out.length < 3 + nV('overstock', 'overstock2') && guard++ < 80) {
     const r = Math.random();
     const o = r < .5 ? offerUpgrade() : r < .75 ? offerLife() : offerPerk();
     if (o && !keys.has(o.key)) { keys.add(o.key); out.push(o); }
@@ -1139,15 +1161,16 @@ function rollMain() {
 }
 function showShop() {
   G.mode = 'shop'; setStatus(null);
-  const relPool = shuffle(Object.keys(RELICS).filter(id => !has(id))).slice(0, 2).map(id => ({ kind: 'relic', id, cost: RELICS[id].cost }));
-  const consPool = shuffle(Object.keys(CONS)).slice(0, 2).map(id => ({ kind: 'cons', id, cost: CONS[id].cost }));
-  G.shop = { main: rollMain(), relics: relPool, cons: consPool, reroll: 2 };
+  const relPool = shuffle(Object.keys(RELICS).filter(id => !has(id))).slice(0, 2).map(id => ({ kind: 'relic', id, cost: price(RELICS[id].cost) }));
+  const consPool = shuffle(Object.keys(CONS)).slice(0, 2).map(id => ({ kind: 'cons', id, cost: price(CONS[id].cost) }));
+  G.shop = { main: rollMain(), relics: relPool, cons: consPool, rerolls: 0, voucher: G.anteVoucher ? { kind: 'voucher', id: G.anteVoucher, cost: VOUCHERS[G.anteVoucher].cost } : null };
   G.rerender = renderShop; renderShop();
   saveRun('shop');
 }
 function offerCard(o, row, ix) {
   let art, title, sub = '', desc, band;
-  if (o.kind === 'relic') { art = img(o.id, ''); title = L(RELICS[o.id].name); desc = L(RELICS[o.id].desc); band = t('band_relic'); }
+  if (o.kind === 'voucher') { const v = VOUCHERS[o.id]; art = img(v.tier > 1 ? 'ticket2' : 'ticket', ''); title = L(v.name); desc = L(v.desc); band = t('band_voucher'); sub = `<div class="for">${t('voucher_note')}</div>`; }
+  else if (o.kind === 'relic') { art = img(o.id, ''); title = L(RELICS[o.id].name); desc = L(RELICS[o.id].desc); band = t('band_relic'); }
   else if (o.kind === 'cons') { art = img(o.id, ''); title = L(CONS[o.id].name); desc = L(CONS[o.id].desc); band = t('band_cons'); }
   else {
     art = gl(o.t, 'w');
@@ -1157,7 +1180,7 @@ function offerCard(o, row, ix) {
     const a = armyById(o.aid); sub = `<div class="for">${esc(t('for', { name: a ? nameOf(a) : '—', type: tname(a ? a.t : o.t).toLowerCase() }))}</div>`;
   }
   let blocked = '';
-  if (o.kind === 'relic' && G.relics.length >= 5) blocked = t('no_room');
+  if (o.kind === 'relic' && G.relics.length >= relicSlots()) blocked = t('no_room');
   if (o.kind === 'cons' && G.cons.length >= consSlots()) blocked = t('slots_full');
   const dis = o.sold || G.gold < o.cost || blocked;
   return `<div class="card k-${o.kind}${o.sold ? ' sold' : ''}"><div class="band">${band}</div><div class="art">${art}</div><h3>${esc(title)}</h3>${sub}<p>${esc(desc)}</p>
@@ -1174,12 +1197,13 @@ function renderShop() {
       <div class="shop-title"><div class="eyebrow">${(G.training ? t('training') + ' · ' : '') + t('eyebrow_sel', { a: G.enc.ante, w: G.wins, g: G.gold })}</div><h2>${t('shop')}</h2></div>
       <div class="goldbig">$${G.gold}</div>
       <div class="shop-actions">
-        <button class="btn green" type="button" data-act="reroll" ${G.gold < s.reroll ? 'disabled' : ''}>${t('reroll', { n: s.reroll })}</button>
+        <button class="btn green" type="button" data-act="reroll" ${G.gold < rerollCost() ? 'disabled' : ''}>${t('reroll', { n: rerollCost() })}</button>
         <button class="btn red" type="button" data-act="leaveShop">${t('next')}</button>
         ${langBtn()}
       </div>
     </div>
     <div class="shop-rows">
+      ${s.voucher ? `<section class="shop-sec voucher-sec"><div class="lbl">${t('voucher_sec')}</div><div class="cards">${offerCard(s.voucher, 'voucher', 0)}</div></section>` : ''}
       ${sec(t('shop_army'), s.main.map((o, i) => offerCard(o, 'main', i)).join('') || `<p class="muted">${t('empty_reroll')}</p>`)}
       ${sec(t('relics_h'), s.relics.map((o, i) => offerCard(o, 'relics', i)).join('') || `<p class="muted">${t('sold_out')}</p>`)}
       ${sec(t('cons_h'), s.cons.map((o, i) => offerCard(o, 'cons', i)).join(''))}
@@ -1201,8 +1225,8 @@ function sellRelic(id) {
   renderShop(); saveRun('shop');
 }
 function buy(row, ix) {
-  const o = G.shop[row][ix]; if (!o || o.sold || G.gold < o.cost) return;
-  if (o.kind === 'relic' && G.relics.length >= 5) return;
+  const o = row === 'voucher' ? G.shop.voucher : G.shop[row][ix]; if (!o || o.sold || G.gold < o.cost) return;
+  if (o.kind === 'relic' && G.relics.length >= relicSlots()) return;
   if (o.kind === 'cons' && G.cons.length >= consSlots()) return;
   G.gold -= o.cost; o.sold = true;
   const a = o.aid ? armyById(o.aid) : null;
@@ -1212,6 +1236,7 @@ function buy(row, ix) {
     case 'perk': a[o.perk] = true; G.upgrades = (G.upgrades || 0) + 1; track('upgrades', { count: G.upgrades, training: G.training }); toast(`${nameOf(a)}: ${t(o.perk === 'th' ? 'thirst' : 'greed')}`); break;
     case 'relic': G.relics.push(o.id); track('relics', { count: G.relics.length, training: G.training }); toast(t('toast_relic', { name: L(RELICS[o.id].name) })); break;
     case 'cons': G.cons.push(o.id); break;
+    case 'voucher': G.vouchers.push(o.id); G.anteVoucher = null; track('voucher', { training: G.training }); toast(t('toast_voucher', { name: L(VOUCHERS[o.id].name) })); break;
   }
   SFX.buy(); flashFx(.15, 0xf3b53c); renderShop(); saveRun('shop');
 }
@@ -1323,7 +1348,7 @@ document.addEventListener('click', e => {
     else if (act === 'skip') skipEnc();
     else if (act === 'peek') { hideOverlay(); $('#peekBack').hidden = false; setStatus('st_peek'); }
     else if (act === 'toShop') showShop();
-    else if (act === 'reroll') { if (G.gold >= G.shop.reroll) { G.gold -= G.shop.reroll; G.shop.reroll++; G.shop.main = rollMain(); SFX.coin(); renderShop(); } }
+    else if (act === 'reroll') { const c = rerollCost(); if (G.gold >= c) { G.gold -= c; G.shop.rerolls = (G.shop.rerolls || 0) + 1; G.shop.main = rollMain(); SFX.coin(); renderShop(); saveRun('shop'); } }
     else if (act === 'leaveShop') showSelect();
     return;
   }

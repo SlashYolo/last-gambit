@@ -25,6 +25,7 @@ export const ACHIEVEMENTS = [
   A('smith', 'hammer', 'Кузнец', 'Blacksmith', 'Купите 5 улучшений фигур за один забег', 'Buy 5 piece upgrades in one run'),
   A('last_breath', 'sand', 'На последнем дыхании', 'Last Breath', 'Поставьте мат последним доступным ходом', 'Deliver mate with your very last move'),
   A('blindfold', 'B', 'Вслепую', 'Blindfolded', 'Победите босса «Слепая партия»', 'Defeat the Blindfold boss'),
+  A('voucher', 'ticket', 'Купонщик', 'Coupon Clipper', 'Купите ваучер', 'Buy a voucher'),
   A('merchant', 'piggy', 'Барахолка', 'Flea Market', 'Продайте реликвию', 'Sell a relic'),
   A('generated', 'prism', 'Новая территория', 'Uncharted', 'Решите случайную позицию (с анте 4)', 'Solve a random position (ante 4 and later)'),
   A('phoenix', 'phoenix', 'Из пепла', 'From the Ashes', 'Спаситесь пером феникса', 'Get saved by the phoenix feather'),
@@ -48,7 +49,7 @@ function unlock(id) {
   notify(BY_ID[id]);
 }
 
-/* Events: runStart, win, ante, promo, gold, relics, upgrades, sell, phoenix, hint, playtime. */
+/* Events: runStart, win, ante, promo, gold, relics, upgrades, sell, voucher, phoenix, hint, playtime. */
 export function track(ev, d = {}) {
   const s = profile.stats, tr = !!d.training;
   switch (ev) {
@@ -97,6 +98,7 @@ export function track(ev, d = {}) {
     case 'upgrades': if (!tr && d.count >= 5) unlock('smith'); break;
     case 'phoenix': if (!tr) unlock('phoenix'); break;
     case 'sell': if (!tr) unlock('merchant'); break;
+    case 'voucher': if (!tr) unlock('voucher'); break;
     case 'hint': s.hints++; break;
     case 'playtime': s.playSeconds += d.seconds || 0; break;
   }
