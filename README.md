@@ -34,7 +34,7 @@
 
 <img src="docs/training.png" alt="Партия в режиме обучения: светлые фигуры против красных, тренер справа объясняет ход" width="100%">
 
-**Свои и чужие фигуры видно сразу:** ваши светлые, вражеские красные, а над каждой фигурой висит значок её типа (клавиша B прячет значки). Жизни показаны отдельной плашкой с сердцем и числом.
+**Свои и чужие фигуры видно сразу:** ваши светлые, вражеские красные, а над каждой фигурой висит значок её типа (клавиша B прячет значки). Усиленные фигуры противника стоят на фиолетовом кольце, а у бронированных над фигурой плашка с сердцем и числом жизней.
 
 ## Режимы
 
@@ -54,12 +54,11 @@
 Ваша армия — 16 фигур с именами. В каждой задаче они встают на места фигур своего типа: прокачанный конь Гром станет конём в любой задаче, где есть конь.
 
 - **Новые ходы.** Пешка учится ходить назад и вбок, конь — прыгать «верблюдом» 3×1, ферзь становится «амазонкой» и ходит ещё и конём.
-- **Жизни.** Если фигуру с несколькими жизнями бьют, она теряет одну жизнь и остаётся на месте.
 - **Свойства.** «Жажда» даёт +1 ход за каждое взятие, «Алчность» — +$1.
-- **Реликвии** меняют правила (держать можно до пяти, лишние продаются в лавке за полцены): «Песочные часы» дают +2 хода в каждой задаче, «Перо феникса» один раз спасает от поражения, «Утренний кофе» делает первый ход бесплатным.
-- **Ваучеры** — как в Balatro: раз в анте в лавке появляется постоянное улучшение на весь забег за $10. Их 14, по две ступени: «Склад» и «Гипермаркет» добавляют улучшения в лавку, «Оптовик» удешевляет обновление, «Распродажа» даёт скидку 25–50%, «Запас времени» добавляет ход в каждой задаче, «Посевные» платят проценты с накоплений, «Сумка» и «Хранилище» добавляют слоты расходников и реликвий.
+- **Реликвии** меняют правила (держать можно до пяти, лишние продаются в лавке за полцены): «Песочные часы» дают +2 хода в каждой задаче, «Перо феникса» один раз спасает от поражения, «Утренний кофе» делает первый ход бесплатным, «Фонарь» подсвечивает фигуру, которая начинает решение.
+- **Ваучеры** — как в Balatro: раз в анте в лавке появляется постоянное улучшение на весь забег. Первый ваучер стоит $10, каждый следующий на $5 дороже: $15, $20 и так далее. Их 14, по две ступени: «Склад» и «Гипермаркет» добавляют улучшения в лавку, «Оптовик» удешевляет обновление, «Распродажа» даёт скидку 25–50%, «Запас времени» добавляет ход в каждой задаче, «Посевные» платят проценты с накоплений, «Сумка» и «Хранилище» добавляют слоты расходников и реликвий.
 - **Обновление лавки** стоит $5 и дорожает на $1 с каждым обновлением; в следующем визите снова $5.
-- **Расходники** выручают в трудную минуту: «Лёд» замораживает фигуру врага, «Молот» разбивает его пешку, «Перемотка» отменяет ход.
+- **Расходники** выручают в трудную минуту: «Лёд» замораживает фигуру врага, «Молот» разбивает его пешку, «Перемотка» отменяет ход, «Озарение» показывает лучший ход в позиции.
 
 ## Прогресс и достижения
 
@@ -88,7 +87,7 @@
 
 ## Задачи
 
-На анте 1–3 — 871 задача на мат в 2–6 ходов из открытой [базы задач Lichess](https://database.lichess.org/#puzzles). Каждая проверена перебором: мат вынужден при любой защите компьютера.
+На анте 1–2 — 871 задача на мат в 2–6 ходов из открытой [базы задач Lichess](https://database.lichess.org/#puzzles). Каждая проверена перебором: мат вынужден при любой защите компьютера.
 
 | Уровень | Задач | Что входит |
 |---|---|---|
@@ -96,9 +95,11 @@
 | Средние | 310 | мат в 2 до 1750 и простые маты в 3 |
 | Тяжёлые | 243 | маты в 3–6 и сложные маты в 2 |
 
-С каждым из трёх анте задачи берутся всё ближе к верху рейтинга, а за один забег задачи не повторяются.
+На анте 1 задачи берутся из нижней части рейтинга каждого уровня, на анте 2 — из верхней, а за один забег задачи не повторяются.
 
-**С анте 4 позиции генерируются случайно**, так что задачи не кончаются и не повторяются. Генератор расставляет фигуры вокруг вражеского короля, делает первый ход противника и принимает позицию, только если перебор доказал вынужденный мат ровно за нужное число ходов при любой защите. Лёгкая и средняя задачи — мат в 2–3, босс — мат в 3. С ростом анте защитников становится больше, а с анте 6 у части вражеских фигур появляются лишние жизни. Позиции ищутся в фоновом потоке заранее, ещё во время предыдущего анте.
+**С анте 3 позиции генерируются случайно**, так что задачи не кончаются и не повторяются. Генератор расставляет фигуры вокруг вражеского короля, делает первый ход противника и принимает позицию, только если перебор доказал вынужденный мат ровно за нужное число ходов при любой защите. Лёгкая и средняя задачи — мат в 2–3, босс — мат в 3.
+
+**Усиленные фигуры врага.** С анте 3 у противника появляются фигуры с модификаторами: броня (лишняя жизнь: взятие снимает жизнь, а фигура остаётся на месте) или дополнительный ход, например конь с прыжком «верблюда» или ладья, которая ходит ещё и конём. На анте 3 таких фигур одна-две, к анте 7 — четыре. Генератор проверяет мат уже с учётом модификаторов. Позиции ищутся в фоновом потоке заранее, ещё во время предыдущего анте.
 
 **Поздние анте сложнее.** С анте 7 компьютер считает глубже и почти не ошибается в защите, а средняя задача — мат в 3; с анте 8 запасных ходов нет, лимит равен длине решения; с анте 9 противник играет в полную силу, и мат в 3 нужен во всех задачах.
 
@@ -140,11 +141,11 @@ npm run build:single # dist-single/index.html — вся игра в одном 
 
 ## English
 
-**The Last Gambit** is a chess roguelike built on real mate puzzles. Each ante has three puzzles: easy, medium and a hard boss. The opponent makes the first move, then you have a limited number of moves to deliver mate or stalemate. Wins pay gold to upgrade specific pieces of your 16-piece army with new moves, extra lives and traits, or to buy relics that bend the rules. One loss ends the run.
+**The Last Gambit** is a chess roguelike built on real mate puzzles. Each ante has three puzzles: easy, medium and a hard boss. The opponent makes the first move, then you have a limited number of moves to deliver mate or stalemate. Wins pay gold to upgrade specific pieces of your 16-piece army with new moves and traits, or to buy relics that bend the rules. One loss ends the run.
 
 **Training mode** adds a coach. Hints come in two steps: first the idea, then the move with an explanation. The coach comments on the opponent's replies and warns you when a move throws away a forced mate. Undo is free, failed puzzles can be retried, and records are not saved.
 
-**Download** the installer for Windows, macOS or Linux from [Releases](../../releases/latest) (about 5–7 MB, works offline), or play the browser version on GitHub Pages. From ante 4 the puzzles are random positions with a mate proven by search, so the game never runs out of puzzles. Spare relics can be sold in the shop, and each ante offers a Balatro-style voucher: a permanent upgrade for the whole run. Rerolls start at $5 and rise by $1 each. From ante 7 the opponent defends harder and the puzzles get tighter. Runs are saved after every move, so quitting mid-puzzle resumes the exact same position. Esc opens the pause menu, and holding the mouse wheel turns the board. The main menu has 28 achievements, lifetime statistics and settings. Switch to English in Settings on the main menu. Your pieces are cream, the opponent's are red, and a badge above each piece shows its type.
+**Download** the installer for Windows, macOS or Linux from [Releases](../../releases/latest) (about 5–7 MB, works offline), or play the browser version on GitHub Pages. Antes 1–2 use Lichess puzzles; from ante 3 the puzzles are random positions with a mate proven by search, and enemy pieces gain modifiers (armour or an extra move) that ramp up every ante. Spare relics can be sold in the shop, and each ante offers a Balatro-style voucher: a permanent upgrade for the whole run, $10 for the first and $5 more for each one after. Rerolls start at $5 and rise by $1 each. From ante 7 the opponent defends harder and the puzzles get tighter. Runs are saved after every move, so quitting mid-puzzle resumes the exact same position. Esc opens the pause menu, and holding the mouse wheel turns the board. The main menu has 28 achievements, lifetime statistics and settings. Switch to English in Settings on the main menu. Your pieces are cream, the opponent's are red, and a badge above each piece shows its type.
 
 **Building from source:** `npm install`, then `npm run dev` for the browser or `npm run app:build` for a desktop installer (needs Rust). Push a `v*` tag and GitHub Actions builds installers for all three systems.
 

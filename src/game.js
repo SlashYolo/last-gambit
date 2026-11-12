@@ -300,6 +300,7 @@ function lifeMat(n) {
 const SNOW_MAT = new THREE.SpriteMaterial({ map: canvasTex(ICON_CANVAS.snow), alphaTest: 0.5 });
 const LOCK_MAT = new THREE.SpriteMaterial({ map: canvasTex(ICON_CANVAS.lock), alphaTest: 0.5 });
 const EYE_MAT = new THREE.MeshBasicMaterial({ color: 0x120a10 });
+const ENEMY_AURA_MAT = new THREE.MeshBasicMaterial({ color: 0xc04aff, transparent: true, opacity: .9, depthWrite: false });
 const AURA_MAT = new THREE.MeshBasicMaterial({ color: 0xf3b53c, transparent: true, opacity: .85, depthWrite: false });
 const meshes = new Map(); const auras = [];
 function part(geo, mat) {
@@ -310,7 +311,8 @@ function part(geo, mat) {
 function buildPiece(p) {
   const white = p.s === 'w';
   const baseColor = new THREE.Color(pieceHex(p.t, p.s)).getHex();
-  const body = toon(baseColor), acc = toon(white ? 0xe0a83a : (p.mhp > 1 ? 0x55606e : 0x2a1424));
+  const accBase = white ? 0xe0a83a : (p.mhp > 1 ? 0x55606e : 0x2a1424);
+  const body = toon(baseColor), acc = toon(accBase);
   const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
   const add = (geo, mat, x = 0, y = 0, z = 0, rx = 0) => { const m = part(geo, mat); m.position.set(x, y, z); m.rotation.x = rx; inner.add(m); return m; };
   switch (p.t) {
@@ -328,8 +330,9 @@ function buildPiece(p) {
   inner.scale.setScalar(PSCALE[p.t]);
   const badge = new THREE.Sprite(badgeMat(p.t, p.s)); const bs = p.t === 'K' ? .82 : .6; badge.scale.set(bs, bs, 1); badge.position.y = topOf(p.t) + (p.t === 'K' ? .52 : .42); badge.renderOrder = 10; badge.visible = SHOW_BADGES; g.add(badge);
   const a = p.id ? armyById(p.id) : null;
-  if (a && (a.ups.length || a.mhp > 1 || a.th || a.gr)) { const r = new THREE.Mesh(GEO.aura, AURA_MAT); r.position.y = 0.015; g.add(r); auras.push(r); g.userData.aura = r; }
-  g.userData = Object.assign(g.userData, { k: p.k, t: p.t, s: p.s, body, baseColor, inner, deco: null, decoKey: '', badge });
+  if (p.s === 'b' && p.mod) { const r = new THREE.Mesh(GEO.aura, ENEMY_AURA_MAT); r.position.y = 0.015; g.add(r); auras.push(r); g.userData.aura = r; }
+  if (a && (a.ups.length || a.th || a.gr)) { const r = new THREE.Mesh(GEO.aura, AURA_MAT); r.position.y = 0.015; g.add(r); auras.push(r); g.userData.aura = r; }
+  g.userData = Object.assign(g.userData, { k: p.k, t: p.t, s: p.s, body, acc, accBase, baseColor, inner, deco: null, decoKey: '', badge });
   return g;
 }
 function updateDecor(m, p) {
@@ -340,7 +343,12 @@ function updateDecor(m, p) {
   if (p.hp > 1) { const s = new THREE.Sprite(lifeMat(p.hp)); s.scale.set(.5, .31, 1); s.position.set(0, top, 0); s.renderOrder = 11; d.add(s); }
   const extra = p.fz > 0 ? SNOW_MAT : p.ch ? LOCK_MAT : null;
   if (extra) { const s = new THREE.Sprite(extra); s.scale.set(.34, .34, 1); s.position.set(0, top + (p.hp > 1 ? .26 : 0), 0); d.add(s); }
-  ud.body.color.set(p.fz > 0 ? 0xdff6ff : ud.baseColor);
+  /* Frozen pieces turn ice blue and 30% see-through; the black outline is hidden so it does not show through. */
+  const frozen = p.fz > 0;
+  ud.body.color.set(frozen ? 0x3d8bff : ud.baseColor);
+  ud.acc.color.set(frozen ? 0x8cc4ff : ud.accBase);
+  for (const mat of [ud.body, ud.acc]) { mat.transparent = frozen; mat.opacity = frozen ? 0.7 : 1; mat.needsUpdate = true; }
+  ud.inner.traverse(o => { if (o.material === outlineMat) o.visible = !frozen; });
   m.add(d); ud.deco = d;
 }
 function removeMesh(k) { const m = meshes.get(k); if (!m) return; scene.remove(m); if (m.userData.aura) auras.splice(auras.indexOf(m.userData.aura), 1); meshes.delete(k); }
@@ -426,6 +434,9 @@ const relicSlots = () => 5 + nV('vault', 'vault2');
 const bonusMoves = () => (has('hourglass') ? 2 : 0) + nV('time', 'time2');
 /* Shop prices after Clearance vouchers; rerolls start at $5 and rise by $1 per reroll within one shop visit. */
 const price = c => Math.max(1, Math.round(c * (1 - 0.25 * nV('clearance', 'clearance2'))));
+const upPrice = c => Math.max(1, price(c) - (has('anvil') ? 1 : 0));
+/* Vouchers get pricier: $10 for the first, +$5 for each voucher already bought. */
+const voucherCost = () => 10 + 5 * (G.vouchers || []).length;
 const rerollCost = () => Math.max(1, 5 + (G.shop ? G.shop.rerolls || 0 : 0) - 2 * nV('reroll', 'reroll2'));
 /* Opponent strength by ante: deeper and steadier search from ante 7, full strength from ante 9. */
 const aiStrength = ante => ante >= 9 ? 2 : ante >= 7 ? 1 : 0;
@@ -436,25 +447,25 @@ function pickVoucher() {
 const armyById = id => G.army.find(a => a.id === id);
 const nameOf = a => L(a.names);
 const mvOf = a => [...BASE[a.t], ...a.ups.filter(c => !BASE[a.t].includes(c))];
-const power = a => a.ups.length * 2 + (a.mhp - 1) * 2 + (a.th ? 1 : 0) + (a.gr ? 1 : 0);
+const power = a => a.ups.length * 2 + (a.th ? 1 : 0) + (a.gr ? 1 : 0);
 function mkArmy(tp, names) { return { id: uid++, t: tp, names, ups: [], mhp: 1, th: false, gr: false }; }
-function pieceFromArmy(a, k, u) { const mv = mvOf(a); return { s: 'w', t: a.t, mv, hp: a.mhp, mhp: a.mhp, fz: 0, u, id: a.id, th: a.th, gr: a.gr, v: valOf(mv), k }; }
+function pieceFromArmy(a, k, u) { const mv = mvOf(a); return { s: 'w', t: a.t, mv, hp: 1, mhp: 1, fz: 0, u, id: a.id, th: a.th, gr: a.gr, v: valOf(mv), k }; }
 
 
 /* ---------- encounters ---------- */
 function pickPuzzle(kind, ante) {
   const list = BANK[kind], n = list.length;
-  /* The bank covers antes 1–3: easiest third first, the top of the rating range by ante 3. */
-  const f = Math.min(1, (ante - 1) / (GEN_FROM - 2));
-  const lo = Math.floor(f * n * 0.7), hi = Math.min(n, lo + Math.ceil(n * 0.3));
+  /* The bank covers antes 1–2: the lower part of each tier first, the upper part in ante 2. */
+  const f = Math.min(1, (ante - 1) / Math.max(1, GEN_FROM - 2));
+  const lo = Math.floor(f * n * 0.55), hi = Math.min(n, lo + Math.ceil(n * 0.45));
   for (let tries = 0; tries < 60; tries++) {
     const rec = list[rint(lo, hi - 1)]; const id = rec.slice(0, rec.indexOf('|'));
     if (!G.usedPz.has(id) || tries === 59) { G.usedPz.add(id); return Object.assign(parsePuzzle(rec), { rec }); }
   }
   const rec = pick(list); return Object.assign(parsePuzzle(rec), { rec });
 }
-/* ---------- generated positions: from ante 4 the Lichess bank gives way to random positions with a proven forced mate ---------- */
-const GEN_FROM = 4;
+/* ---------- generated positions: from ante 3 the Lichess bank gives way to random positions with a proven forced mate ---------- */
+const GEN_FROM = 3;
 let genWorker = null, genSeq = 0;
 const genWaiters = new Map(), genCache = new Map();
 function workerGen(ante, kind) {
@@ -471,7 +482,7 @@ function workerGen(ante, kind) {
 }
 /* Fallback when workers are unavailable: a short search on the main thread, then the hardest bank puzzles. */
 function mainThreadGen(ante, kind) {
-  const r = generatePuzzle({ ...genSpec(ante, kind), minN: 2, maxN: 2, lives: 0 }, 1500);
+  const r = generatePuzzle({ ...genSpec(ante, kind), minN: 2, maxN: 2, mods: Math.min(1, genSpec(ante, kind).mods) }, 1500);
   return r ? r.rec : pickPuzzle(2, 99).rec;
 }
 function generated(ante, kind) {
@@ -517,7 +528,6 @@ function buildBoard(enc) {
     const mem = G.army.filter(a => a.t === tp && !taken.has(a.id)).sort((x, y) => power(y) - power(x) || x.id - y.id);
     sqs.forEach((i, n) => { const a = mem[n]; if (!a) return; taken.add(a.id); b[i] = pieceFromArmy(a, b[i].k, b[i].u); });
   }
-  if (has('aegis')) b.forEach((p, i) => { if (p && p.s === 'w' && p.t === 'P') b[i] = { ...p, hp: p.hp + 1, mhp: p.mhp + 1 }; });
   for (const i of enc.chains) if (b[i] && b[i].s === 'w') b[i] = { ...b[i], ch: true };
   return b;
 }
@@ -540,8 +550,8 @@ const tname = tp => L(TNAME[tp]);
 function pieceInfoHTML(p) {
   if (!p) return `<div class="lbl">${t('piece')}</div><p class="muted">${t('piece_hint')}</p>`;
   const a = p.id ? armyById(p.id) : null;
-  const ups = a ? a.ups : [];
-  const lines = p.mv.map(c => `<li class="${ups.includes(c) && !BASE[p.t].includes(c) ? 'up' : ''}">${esc(L(MVNAME[c]))}</li>`);
+  const lines = p.mv.map(c => `<li class="${!BASE[p.t].includes(c) ? 'up' : ''}">${esc(L(MVNAME[c]))}</li>`);
+  if (p.s === 'b' && p.mod) lines.unshift(`<li class="bad">${t('li_mod')}</li>`);
   if (p.mhp > 1 || p.hp > 1) lines.push(`<li class="perk">${t('li_lives')}</li>`);
   if (p.th) lines.push(`<li class="perk">${t('li_thirst')}</li>`);
   if (p.gr) lines.push(`<li class="perk">${t('li_greed')}</li>`);
@@ -554,7 +564,6 @@ function pieceInfoHTML(p) {
 function armyEntryCard(a) {
   const mv = mvOf(a);
   const lines = mv.map(c => `<li class="${a.ups.includes(c) && !BASE[a.t].includes(c) ? 'up' : ''}">${esc(L(MVNAME[c]))}</li>`);
-  if (a.mhp > 1) lines.push(`<li class="perk">${t('li_lives_n', { n: a.mhp })}</li>`);
   if (a.th) lines.push(`<li class="perk">${t('li_thirst')}</li>`);
   if (a.gr) lines.push(`<li class="perk">${t('li_greed')}</li>`);
   return `<div class="pc-head">${gl(a.t, 'w')}<div><div class="pc-name">${esc(nameOf(a))}</div><div class="pc-type">${tname(a.t)}</div>${a.mhp > 1 ? heartsHTML(a.mhp) : ''}</div></div><ul class="mvlist">${lines.join('')}</ul>`;
@@ -598,7 +607,6 @@ function renderHUD() {
   $('#armyList').innerHTML = G.army.map(a => {
     const tags = [];
     if (a.ups.length) tags.push(`<span class="tag">+${a.ups.length}</span>`);
-    if (a.mhp > 1) tags.push(`<span class="tag hp">♥${a.mhp}</span>`);
     if (a.th || a.gr) tags.push(`<span class="tag pk">${a.th ? '+1' : ''}${a.gr ? '$' : ''}</span>`);
     return `<button type="button" class="arm${alive.has(a.id) ? '' : ' dead'}" data-arm="${a.id}">${gl(a.t, 'w')}<span class="an">${esc(nameOf(a))}</span><span class="tags">${tags.join('')}</span></button>`;
   }).join('');
@@ -677,6 +685,9 @@ function continueRun() {
   uid = r.uid; G.training = r.training; G.army = r.army; G.gold = r.gold; G.relics = r.relics; G.cons = r.cons; G.encIndex = r.encIndex;
   G.wins = r.wins; G.skipped = r.skipped; G.usedPz = new Set(r.usedPz); G.upgrades = r.upgrades; setPromoRank(7);
   G.vouchers = r.vouchers || []; G.anteVoucher = r.anteVoucher || null;
+  G.relics = G.relics.filter(id => RELICS[id]); G.cons = G.cons.filter(id => CONS[id]);
+  for (const a of G.army) a.mhp = 1;
+  if (r.shop) { r.shop.main = (r.shop.main || []).filter(o => o.kind !== 'life'); r.shop.relics = (r.shop.relics || []).filter(o => RELICS[o.id]); r.shop.cons = (r.shop.cons || []).filter(o => CONS[o.id]); }
   if (r.shop && r.shop.rerolls === undefined) r.shop.rerolls = 0;
   G.anteEncs = r.encs.map(e => {
     const enc = { ante: e.ante, kind: e.kind, boss: BOSSES.find(b => b.id === e.boss) || null, P: null, chains: e.chains, limit: e.limit, reward: e.reward };
@@ -726,6 +737,7 @@ function renderSelect() {
     let body = !e.P ? `<div class="kv"><span>${t('reward')}</span><b class="gold">$${e.reward}</b></div><p class="muted">${t('gen_pending')}</p>`
       : `<div class="kv"><span>${t('mate_in', { n: '' }).trim()}</span><b class="gold">${e.P.n}</b></div><div class="kv"><span>${t('limit')}</span><b>${lim}</b></div><div class="kv"><span>${t('reward')}</span><b class="gold">$${e.reward}</b></div><div class="kv"><span>${t(e.P.gen ? 'rating_gen' : 'rating')}</span><b>${e.P.gen ? '~' : ''}${e.P.rating}</b></div>`;
     if (e.P && e.P.gen) body += `<div class="gen-tag">${t('gen_tag')}</div>`;
+    if (e.P) { const nm = e.P.board.filter(p => p && p.mod).length; if (nm) body += `<div class="gen-tag mods">${t('mods_tag', { n: nm })}</div>`; }
     if (aiStrength(e.ante)) body += `<div class="gen-tag ai">${t(aiStrength(e.ante) > 1 ? 'ai_max' : 'ai_strong')}</div>`;
     if (e.boss) body += `<div class="boss-mod">${esc(L(e.boss.desc))}</div>`;
     if (state === 'cur') {
@@ -826,6 +838,7 @@ async function startLevel() {
     if (en.length) { const i = pick(en); G.board[i] = { ...G.board[i], fz: 3 }; syncMeshes(G.board); floatText(i, t('fl_frozen'), '#9fdcff'); }
   }
   G.moves = legal(G.board, 'w'); G.busy = false; G.lineIx = 0;
+  if (has('lantern') && enc.P.sol[0]) { const s0 = enc.P.sol[0], m0 = G.moves.find(x => x.f === s0.f && x.t === s0.t); if (m0) { G.hint = { board: G.board, m: m0, lvl: 1, ex: explainMove(G.board, m0, true, enc.P.n) }; toast(t('toast_lantern', { sq: sqName(m0.f) }), 2600); } }
   if (G.training) coachSay([['coach_start', { mv: label, n: enc.P.n, w: () => plural(enc.P.n) }]]);
   renderHUD(); refreshMarks();
   if (!G.moves.length) return loseLevel(inCheck(G.board, 'w') ? 'lose_mate' : 'lose_stale');
@@ -868,7 +881,6 @@ async function executeMove(m, side) {
     if (ev.cap || ev.bounce) {
       if (p.gr) { G.gold += 1; floatText(actor, '+$1'); SFX.coin(); }
       if (p.th) { G.limit += 1; floatText(actor, t('fl_move'), '#7cf0a0'); }
-      if (has('grail') && p.hp < p.mhp) { G.board[actor] = { ...p, hp: p.hp + 1 }; floatText(actor, '+1 ♥', '#ff8a9a'); }
       if (ev.cap && ev.cap.t !== 'P' && has('butcher')) { G.gold += 2; floatText(m.t, '+$2'); SFX.coin(); }
     }
     if (ev.promo && p.id) {
@@ -1017,6 +1029,11 @@ function useCons(ix) {
     setStatus('st_target', { name: L(c.name) }, 'target'); SFX.select(); return;
   }
   if (id === 'sand') { G.limit += 3; toast(t('toast_sand')); }
+  if (id === 'insight') {
+    const r = findHintMove(); if (!r) { toast(t('toast_no_target')); return; }
+    G.hint = { board: G.board, m: r.m, lvl: 2, ex: explainMove(G.board, r.m, r.sure, r.n) };
+    toast(t('toast_insight', { mv: moveLabel(G.board, r.m) }), 3200);
+  }
   if (id === 'rewind') {
     const h = G.history.pop(); if (!h) { toast(t('toast_nothing_undo')); return; }
     Object.assign(G, { board: h.board, used: h.used, limit: h.limit, lastMove: h.lastMove, gold: h.gold, checksBonus: h.checks, coffeeUsed: h.coffee, lineIx: h.lineIx, forced: h.forced, hint: null });
@@ -1030,7 +1047,6 @@ function applyTarget(i) {
   const p = G.board[i]; const b = G.board.slice();
   if (id === 'ice') { b[i] = { ...p, fz: 3 }; floatText(i, t('fl_frozen'), '#9fdcff'); burst(sqPos(i).setY(.6), [0x9fdcff, 0xffffff], 20, 1.8, 3); }
   if (id === 'hammer') { b[i] = null; shake(.014, .3); burst(sqPos(i).setY(.4), [0xa3283c, 0x2a1424, 0xb9c6cf], 34); SFX.capture(); }
-  if (id === 'bless') { b[i] = { ...p, hp: p.hp + 1, mhp: p.mhp + 1 }; floatText(i, '+1 ♥', '#ff8a9a'); burst(sqPos(i).setY(.8), [0xfff3c0, 0xff8a9a], 18, 1.4, 3); }
   G.board = b; G.cons.splice(ix, 1); G.targeting = null; SFX.magic();
   syncMeshes(G.board); G.moves = legal(G.board, 'w'); renderHUD(); refreshMarks(); afterConsumable();
 }
@@ -1139,22 +1155,18 @@ function trainUndo() {
 function offerUpgrade() {
   const c = []; for (const a of G.army) for (const u of (UPS[a.t] || [])) if (!a.ups.includes(u[0])) c.push([a, u]);
   if (!c.length) return null; const [a, u] = pick(c);
-  return { kind: 'up', aid: a.id, code: u[0], title: u[1], desc: u[2], cost: price(rint(4, 6)), t: a.t, key: 'up' + a.id + u[0] };
-}
-function offerLife() {
-  const c = G.army.filter(a => a.t !== 'K' && a.mhp < 3); if (!c.length) return null; const a = pick(c);
-  return { kind: 'life', aid: a.id, cost: price(3 + a.mhp * 2), t: a.t, key: 'life' + a.id };
+  return { kind: 'up', aid: a.id, code: u[0], title: u[1], desc: u[2], cost: upPrice(rint(4, 6)), t: a.t, key: 'up' + a.id + u[0] };
 }
 function offerPerk() {
   const c = []; for (const a of G.army) { if (!a.th) c.push([a, 'th']); if (!a.gr) c.push([a, 'gr']); }
   if (!c.length) return null; const [a, k] = pick(c);
-  return { kind: 'perk', aid: a.id, perk: k, cost: price(k === 'th' ? 5 : 4), t: a.t, key: k + a.id };
+  return { kind: 'perk', aid: a.id, perk: k, cost: upPrice(k === 'th' ? 5 : 4), t: a.t, key: k + a.id };
 }
 function rollMain() {
   const out = [], keys = new Set(); let guard = 0;
   while (out.length < 3 + nV('overstock', 'overstock2') && guard++ < 80) {
     const r = Math.random();
-    const o = r < .5 ? offerUpgrade() : r < .75 ? offerLife() : offerPerk();
+    const o = r < .65 ? offerUpgrade() : offerPerk();
     if (o && !keys.has(o.key)) { keys.add(o.key); out.push(o); }
   }
   return out;
@@ -1163,7 +1175,7 @@ function showShop() {
   G.mode = 'shop'; setStatus(null);
   const relPool = shuffle(Object.keys(RELICS).filter(id => !has(id))).slice(0, 2).map(id => ({ kind: 'relic', id, cost: price(RELICS[id].cost) }));
   const consPool = shuffle(Object.keys(CONS)).slice(0, 2).map(id => ({ kind: 'cons', id, cost: price(CONS[id].cost) }));
-  G.shop = { main: rollMain(), relics: relPool, cons: consPool, rerolls: 0, voucher: G.anteVoucher ? { kind: 'voucher', id: G.anteVoucher, cost: VOUCHERS[G.anteVoucher].cost } : null };
+  G.shop = { main: rollMain(), relics: relPool, cons: consPool, rerolls: 0, voucher: G.anteVoucher ? { kind: 'voucher', id: G.anteVoucher, cost: voucherCost() } : null };
   G.rerender = renderShop; renderShop();
   saveRun('shop');
 }
@@ -1175,7 +1187,6 @@ function offerCard(o, row, ix) {
   else {
     art = gl(o.t, 'w');
     if (o.kind === 'up') { title = L(o.title); desc = L(o.desc); band = t('band_up'); }
-    else if (o.kind === 'life') { title = t('life_title'); desc = t('life_desc'); band = t('band_life'); }
     else { title = t(o.perk === 'th' ? 'thirst' : 'greed'); desc = t(o.perk === 'th' ? 'thirst_desc' : 'greed_desc'); band = t('band_perk'); }
     const a = armyById(o.aid); sub = `<div class="for">${esc(t('for', { name: a ? nameOf(a) : '—', type: tname(a ? a.t : o.t).toLowerCase() }))}</div>`;
   }
@@ -1232,7 +1243,6 @@ function buy(row, ix) {
   const a = o.aid ? armyById(o.aid) : null;
   switch (o.kind) {
     case 'up': a.ups.push(o.code); G.upgrades = (G.upgrades || 0) + 1; track('upgrades', { count: G.upgrades, training: G.training }); toast(`${nameOf(a)}: ${L(o.title)}`); break;
-    case 'life': a.mhp++; G.upgrades = (G.upgrades || 0) + 1; track('upgrades', { count: G.upgrades, training: G.training }); toast(t('toast_life', { name: nameOf(a), n: a.mhp })); break;
     case 'perk': a[o.perk] = true; G.upgrades = (G.upgrades || 0) + 1; track('upgrades', { count: G.upgrades, training: G.training }); toast(`${nameOf(a)}: ${t(o.perk === 'th' ? 'thirst' : 'greed')}`); break;
     case 'relic': G.relics.push(o.id); track('relics', { count: G.relics.length, training: G.training }); toast(t('toast_relic', { name: L(RELICS[o.id].name) })); break;
     case 'cons': G.cons.push(o.id); break;
@@ -1452,4 +1462,4 @@ export async function boot() {
   await showSplash();
   showMenu();
 }
-window.__LG = { G, jumpToAnte: a => { G.encIndex = (a - 1) * 3; newAnte(); showSelect(); }, shop: () => { advanceEnc(); showShop(); }, play: m => playerMove(m), askHint, findHintMove, explainMove, legal, applyMove, aiChoose, parsePuzzle, BANK, setLang, inCheck, hasLegal, profile };
+window.__LG = { G, syncMeshes, jumpToAnte: a => { G.encIndex = (a - 1) * 3; newAnte(); showSelect(); }, shop: () => { advanceEnc(); showShop(); }, play: m => playerMove(m), askHint, findHintMove, explainMove, legal, applyMove, aiChoose, parsePuzzle, BANK, setLang, inCheck, hasLegal, profile };

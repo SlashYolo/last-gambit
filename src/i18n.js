@@ -61,10 +61,10 @@ export const STR = {
     subtitle: 'Шахматный рогалик на настоящих задачах. Играйте против компьютера, пока не проиграете.',
     how: 'Как играть',
     rules: [
-      'Каждая ситуация — задача на мат. В анте три задачи: лёгкая, средняя и тяжёлая. На анте 1–3 это настоящие задачи из открытой базы Lichess, с анте 4 — случайные позиции, где мат проверен перебором.',
+      'Каждая ситуация — задача на мат. В анте три задачи: лёгкая, средняя и тяжёлая. На анте 1–2 это настоящие задачи из открытой базы Lichess, с анте 3 — случайные позиции, где мат проверен перебором, а у врага с каждым анте всё больше усиленных фигур: с бронёй (лишней жизнью) или дополнительным ходом.',
       'Противник делает первый ход, дальше ваша очередь. Поставьте мат или пат, пока не кончились ходы. Компьютер защищается сам, а не по сценарию.',
       'Ваша армия из 16 фигур занимает места фигур своего типа в задаче. Прокачанный конь станет конём в каждой задаче, где есть конь.',
-      'За победу — золото. В лавке улучшайте конкретные фигуры: новые ходы, жизни, свойства. Реликвии меняют правила.',
+      'За победу — золото. В лавке улучшайте конкретные фигуры: новые ходы и свойства. Реликвии меняют правила, ваучеры действуют весь забег.',
       'Одно поражение — и забег окончен. Тяжёлая задача — это босс со своим условием.'
     ],
     start: 'Начать забег', best: 'Лучший забег: анте {a}, побед {w}', credit: 'Задачи: открытая база задач Lichess (lichess.org)',
@@ -148,10 +148,10 @@ export const STR = {
     subtitle: 'A chess roguelike built on real puzzles. Play against the computer until you lose.',
     how: 'How to play',
     rules: [
-      'Every encounter is a mate puzzle. Each ante has three: easy, medium and hard. In antes 1–3 they are real puzzles from the open Lichess database; from ante 4 they are random positions with a mate proven by search.',
+      'Every encounter is a mate puzzle. Each ante has three: easy, medium and hard. In antes 1–2 they are real puzzles from the open Lichess database; from ante 3 they are random positions with a mate proven by search, and each ante brings more empowered enemy pieces with armour (an extra life) or an extra move.',
       'The opponent makes the first move, then it is your turn. Deliver mate or stalemate before you run out of moves. The computer defends on its own, not from a script.',
       'Your 16-piece army takes the places of same-type pieces in each puzzle. An upgraded knight plays as the knight in every puzzle that has one.',
-      'Wins pay gold. In the shop you upgrade specific pieces: new moves, lives, traits. Relics bend the rules.',
+      'Wins pay gold. In the shop you upgrade specific pieces with new moves and traits. Relics bend the rules, vouchers last the whole run.',
       'One loss ends the run. The hard puzzle is a boss with its own twist.'
     ],
     start: 'Start a run', best: 'Best run: ante {a}, {w} wins', credit: 'Puzzles: the open Lichess puzzle database (lichess.org)',

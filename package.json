@@ -1,7 +1,7 @@
 {
   "name": "last-gambit",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.1",
   "type": "module",
   "description": "The Last Gambit — a chess roguelike built on real mate puzzles",
   "license": "MIT",

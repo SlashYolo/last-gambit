@@ -27,7 +27,7 @@ export const ACHIEVEMENTS = [
   A('blindfold', 'B', 'Вслепую', 'Blindfolded', 'Победите босса «Слепая партия»', 'Defeat the Blindfold boss'),
   A('voucher', 'ticket', 'Купонщик', 'Coupon Clipper', 'Купите ваучер', 'Buy a voucher'),
   A('merchant', 'piggy', 'Барахолка', 'Flea Market', 'Продайте реликвию', 'Sell a relic'),
-  A('generated', 'prism', 'Новая территория', 'Uncharted', 'Решите случайную позицию (с анте 4)', 'Solve a random position (ante 4 and later)'),
+  A('generated', 'prism', 'Новая территория', 'Uncharted', 'Решите случайную позицию (с анте 3)', 'Solve a random position (ante 3 and later)'),
   A('phoenix', 'phoenix', 'Из пепла', 'From the Ashes', 'Спаситесь пером феникса', 'Get saved by the phoenix feather'),
   A('solver50', 'bless', 'Решатель', 'Solver', 'Решите 50 задач в забегах', 'Solve 50 puzzles in runs'),
   A('solver200', 'crown', 'Задачник', 'Problemist', 'Решите 200 задач в забегах', 'Solve 200 puzzles in runs'),

@@ -42,3 +42,20 @@ test('generated positions are forced mates of the requested length', () => {
     assert.equal(searchMate(b, 1, 2000), null, 'mate in one is too easy');
   }
 });
+
+test('enemy modifiers come through the record: armour and an extra move', () => {
+  const P = parsePuzzle('gen2|1500|4k3/8/2n5/8/8/2r5/8/4K2R|b|c3c2|h1h8|c3:2,c6:+C');
+  assert.equal(P.board[18].hp, 2);
+  assert.ok(P.board[42].mv.includes('C') && P.board[42].mod);
+  const knightTargets = legal(P.board, 'b').filter(m => m.f === 42).map(m => m.t);
+  assert.ok(knightTargets.includes(42 + 8 * 3 + 1) || knightTargets.includes(42 - 8 * 3 + 1), 'camel jump available');
+});
+
+test('generated positions from ante 3 carry enemy modifiers and stay forced', () => {
+  const r = generatePuzzle(genSpec(4, 1), 12000);
+  assert.ok(r, 'generator found nothing in time');
+  const P = parsePuzzle(r.rec);
+  assert.ok(P.board.some(p => p && p.mod), 'no modified enemy piece');
+  const b = applyMove(P.board, P.init);
+  assert.ok(withDeadline(10000, () => wMates(b, P.n)), 'mate is not forced');
+});

@@ -279,3 +279,5 @@ button.slot:hover{transform:translateY(-2px) rotate(-3deg)}
 .k-voucher .band{background:linear-gradient(90deg,var(--gold),var(--violet));color:#1a0f2a}
 .shop .k-voucher{border-color:#5c4a14;box-shadow:0 5px 0 var(--line),0 0 0 2px var(--gold) inset}
 .gen-tag.ai{color:#ffb0a6;background:#2a1418}
+
+.gen-tag.mods{color:#e3b8ff;background:#2a1440}

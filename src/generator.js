@@ -1,22 +1,24 @@
 /* Random mate positions for the late game (ante 4 and later).
    A position is accepted only when the forced-mate solver proves that white mates in exactly n moves
    against every defence, so every generated puzzle is solvable. The result uses the same record
-   format as the Lichess bank: id|rating|FEN board|side to move|opponent's first move|solution|lives. */
+   format as the Lichess bank: id|rating|FEN board|side to move|opponent's first move|solution|enemy modifiers. */
 import { BASE, valOf, legal, applyMove, hasLegal, inCheck, sqName, searchMate } from './engine.js';
 
 const rnd = n => Math.floor(Math.random() * n);
 const pick = a => a[rnd(a.length)];
+/* Extra move patterns an enemy piece can get as a modifier. */
+const MOD_MOVES = { P: ['Ps', 'F'], N: ['C', 'Z', 'W'], B: ['W', 'N'], R: ['F', 'N'], Q: ['N'] };
 const KITS = [['Q', 'R'], ['Q', 'N'], ['R', 'R'], ['R', 'B'], ['Q', 'B'], ['R', 'N', 'B'], ['Q'], ['R', 'N'], ['Q', 'R', 'N'], ['B', 'B', 'R'], ['N', 'N', 'R']];
 
-/* Difficulty by ante and encounter kind: mate length, defenders, extra lives. */
+/* Difficulty by ante and encounter kind: mate length, defenders and enemy modifiers (armour or an extra move pattern). */
 export function genSpec(ante, kind) {
-  const a = Math.max(0, ante - 4);
+  const a = Math.max(0, ante - 3);
   return {
     minN: kind === 2 || ante >= 9 || (ante >= 7 && kind === 1) ? 3 : 2,
     maxN: kind === 0 && ante < 7 ? 2 : 3,
     pieces: Math.min(5, 1 + kind + Math.floor(a / 2)),
     pawns: Math.min(5, 2 + Math.floor(a / 3)),
-    lives: ante >= 6 ? Math.min(3, 1 + Math.floor((ante - 6) / 2)) : 0,
+    mods: Math.max(0, Math.min(4, ante - 2 + (kind === 2 ? 1 : 0))),
     ante, kind
   };
 }
@@ -38,9 +40,15 @@ function randomBoard(spec) {
   for (let tries = 0; tries < 20; tries++) if (put('w', 'K', rnd(8), rnd(2))) break;
   for (const t of pick(KITS)) for (let tries = 0; tries < 30; tries++) if (put('w', t, rnd(8), 1 + rnd(7))) break;
   for (let i = 0, n = rnd(4), tries = 0; i < n && tries < 20; tries++) if (put('w', 'P', rnd(8), 1 + rnd(4))) i++;
-  if (spec.lives) {
-    const cand = b.map((p, i) => p && p.s === 'b' && p.t !== 'K' && p.t !== 'P' ? i : -1).filter(i => i >= 0);
-    for (let i = 0; i < spec.lives && cand.length; i++) { const j = cand.splice(rnd(cand.length), 1)[0]; b[j] = { ...b[j], hp: 2, mhp: 2 }; }
+  if (spec.mods) {
+    const cand = b.map((p, i) => p && p.s === 'b' && p.t !== 'K' ? i : -1).filter(i => i >= 0)
+      .sort((x, y) => (b[x].t === 'P') - (b[y].t === 'P') || Math.random() - .5);
+    for (let i = 0; i < spec.mods && cand.length; i++) {
+      const j = cand.shift(), p = b[j];
+      const extra = (MOD_MOVES[p.t] || []).filter(c => !p.mv.includes(c));
+      if (p.t !== 'Q' && p.t !== 'P' && (Math.random() < .5 || !extra.length)) b[j] = { ...p, hp: 2, mhp: 2, mod: 'armor' };
+      else if (extra.length) { const c = pick(extra); const mv = [...p.mv, c]; b[j] = { ...p, mv, v: valOf(mv), mod: '+' + c }; }
+    }
   }
   return b;
 }
@@ -99,9 +107,9 @@ export function generatePuzzle(spec, budgetMs = 4000) {
     if (!r || r.n < spec.minN) continue;
     const line = mainLine(b1, r.n, Math.min(end, performance.now() + 1500));
     if (!line || line.length !== 2 * r.n - 1) continue;
-    const lives = b0.map((p, i) => p && p.hp > 1 ? `${sqName(i)}:${p.hp}` : null).filter(Boolean).join(',');
+    const lives = b0.map((p, i) => p && p.mod ? `${sqName(i)}:${p.mod === 'armor' ? p.hp : p.mod}` : null).filter(Boolean).join(',');
     const defenders = b0.filter(p => p && p.s === 'b' && p.t !== 'K').length;
-    const rating = Math.min(2600, 1300 + 250 * (r.n - 1) + 40 * defenders + 60 * (spec.ante - 4) + 120 * (lives ? lives.split(',').length : 0));
+    const rating = Math.min(2600, 1300 + 250 * (r.n - 1) + 40 * defenders + 60 * (spec.ante - 3) + 110 * (lives ? lives.split(',').length : 0));
     const id = 'gen' + Date.now().toString(36) + rnd(1e6).toString(36);
     return { rec: [id, rating, fenOf(b0), 'b', uci(init), line.map(uci).join(' '), lives].join('|'), tries, n: r.n };
   }

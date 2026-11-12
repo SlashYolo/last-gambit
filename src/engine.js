@@ -210,8 +210,13 @@ function parsePuzzle(rec) {
       x++;
     }
   });
-  /* Optional 7th field: squares of pieces with extra lives, e.g. "e7:2,c6:2" (used by generated positions). */
-  if (lives) for (const it of lives.split(',')) { const [sq, n] = it.split(':'); const i = sqIx(sq, flip); if (b[i]) b[i] = { ...b[i], hp: +n, mhp: +n }; }
+  /* Optional 7th field: enemy modifiers in generated positions. "e7:2" gives the piece on e7 two lives (armour),
+     "c6:+C" adds the move pattern C (here the camel jump). */
+  if (lives) for (const it of lives.split(',')) {
+    const [sq, n] = it.split(':'); const i = sqIx(sq, flip); if (!b[i]) continue;
+    if (n[0] === '+') { const mv = [...b[i].mv, n.slice(1)]; b[i] = { ...b[i], mv, v: valOf(mv), mod: true }; }
+    else b[i] = { ...b[i], hp: +n, mhp: +n, mod: true };
+  }
   const mv = u => ({ f: sqIx(u.slice(0, 2), flip), t: sqIx(u.slice(2, 4), flip) });
   const line = sol.split(' ');
   const P = { id, rating: +rating, board: b, init: mv(init), sol: line.map(mv), n: Math.ceil(line.length / 2) };

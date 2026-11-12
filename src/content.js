@@ -48,22 +48,22 @@ const UPS = {
 const RELICS = {
   hourglass: { name: N2('Песочные часы', 'Hourglass'), desc: N2('+2 хода в каждой задаче', '+2 moves in every puzzle'), cost: 6 },
   crown: { name: N2('Корона мечтателя', "Dreamer's Crown"), desc: N2('Ваши пешки превращаются в ферзя уже на 7-й горизонтали', 'Your pawns promote to a queen on the 7th rank'), cost: 7 },
-  grail: { name: N2('Кровавый грааль', 'Blood Grail'), desc: N2('Взятие лечит взявшую фигуру на 1 жизнь', 'A capture heals the capturing piece by 1 life'), cost: 6 },
   piggy: { name: N2('Копилка', 'Piggy Bank'), desc: N2('+$1 за каждый неиспользованный ход вместо $1 за два', '+$1 per unused move instead of $1 per two'), cost: 6 },
   coffee: { name: N2('Утренний кофе', 'Morning Coffee'), desc: N2('Первый ход в каждой задаче не тратит лимит', 'Your first move in each puzzle is free'), cost: 5 },
-  aegis: { name: N2('Эгида', 'Aegis'), desc: N2('Пешки начинают каждую задачу с +1 жизнью', 'Pawns start every puzzle with +1 life'), cost: 7 },
   phoenix: { name: N2('Перо феникса', 'Phoenix Feather'), desc: N2('Один раз спасает от поражения: задача начинается заново', 'Saves you from one loss: the puzzle restarts'), cost: 8 },
   butcher: { name: N2('Мясник', 'Butcher'), desc: N2('+$2 за каждую взятую фигуру, кроме пешки', '+$2 for every captured piece except pawns'), cost: 5 },
   frost: { name: N2('Ледяное сердце', 'Frozen Heart'), desc: N2('После первого хода противника случайная его фигура замерзает на 3 хода', "After the opponent's first move, a random enemy piece freezes for 3 turns"), cost: 6 },
   gambit: { name: N2('Азарт', 'Gambit'), desc: N2('Каждый шах даёт +1 ход (до 3 за задачу)', 'Each check gives +1 move (up to 3 per puzzle)'), cost: 6 },
+  lantern: { name: N2('Фонарь', 'Lantern'), desc: N2('В начале каждой задачи подсвечивает фигуру, которая делает первый ход решения', 'At the start of each puzzle, highlights the piece that makes the first move of the solution'), cost: 7 },
+  anvil: { name: N2('Наковальня', 'Anvil'), desc: N2('Улучшения армии в лавке на $1 дешевле', 'Army upgrades in the shop cost $1 less'), cost: 5 },
   prism: { name: N2('Призма', 'Prism'), desc: N2('+1 слот для расходников', '+1 consumable slot'), cost: 5 }
 };
 const CONS = {
   sand: { name: N2('Песок времени', 'Sands of Time'), desc: N2('+3 хода в текущей задаче', '+3 moves in the current puzzle'), cost: 3, target: null },
   ice: { name: N2('Лёд', 'Ice'), desc: N2('Заморозить вражескую фигуру на 3 хода. Замёрзшая фигура не ходит и не бьёт', 'Freeze an enemy piece for 3 turns. A frozen piece cannot move or attack'), cost: 3, target: 'enemy' },
   hammer: { name: N2('Молот', 'Hammer'), desc: N2('Разбить вражескую пешку', 'Smash an enemy pawn'), cost: 4, target: 'enemyPawn' },
+  insight: { name: N2('Озарение', 'Insight'), desc: N2('Показать на доске лучший ход в текущей позиции', 'Show the best move in the current position on the board'), cost: 4, target: null },
   rewind: { name: N2('Перемотка', 'Rewind'), desc: N2('Отменить свой последний ход и ответ врага', 'Undo your last move and the reply'), cost: 3, target: null },
-  bless: { name: N2('Благословение', 'Blessing'), desc: N2('+1 жизнь своей фигуре до конца задачи', '+1 life to one of your pieces for this puzzle'), cost: 3, target: 'own' }
 };
 const BOSSES = [
   { id: 'haste', name: N2('Цейтнот', 'Time Trouble'), desc: N2('Ни одного запасного хода: лимит равен длине решения', 'No spare moves: the limit equals the solution length') },
@@ -129,6 +129,9 @@ const ICON_ROWS = {
   snow: ['...c....', '.c.c.c..', '..ccc...', 'cccwccc.', '..ccc...', '.c.c.c..', '...c....', '........'],
   ticket: ['yyyyyyyy', 'y.yyyy.y', 'yyyyyyyy', 'yykkkkyy', 'yyyyyyyy', 'yykkyyyy', 'y.yyyy.y', 'yyyyyyyy'],
   ticket2: ['pppppppp', 'p.pppp.p', 'pppppppp', 'ppwwwwpp', 'pppppppp', 'ppwwpppp', 'p.pppp.p', 'pppppppp'],
+  lantern: ['...kk...', '..kyyk..', '.kywwyk.', '.kywwyk.', '.kyyyyk.', '..kyyk..', '...kk...', '..oooo..'],
+  anvil: ['........', 'MMMMMMM.', 'mMMMMMMM', '..MMMM..', '..mmmm..', '.mmmmmm.', 'mmmmmmmm', '........'],
+  insight: ['..yyyy..', '.yywwyy.', '.ywwwwy.', '.yywwyy.', '..yyyy..', '...oo...', '..oooo..', '...oo...'],
   lock: ['..MMMM..', '.M....M.', '.M....M.', 'yyyyyyyy', 'yyykkyyy', 'yyykkyyy', 'yyyyyyyy', 'oooooooo']
 };
 const ICON_CANVAS = {}, ICON = {};
