@@ -2,10 +2,18 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e13">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Last Gambit">
+<meta name="format-detection" content="telephone=no">
 <title>Последний гамбит</title>
 <meta name="description" content="Шахматный рогалик на задачах Lichess: мат за лимит ходов, прокачка фигур, реликвии и лавка.">
-<link rel="icon" type="image/png" href="/icon.png">
+<link rel="icon" type="image/png" href="./icon.png">
+<link rel="apple-touch-icon" href="./icon-512.png">
+<link rel="manifest" href="./manifest.webmanifest">
 </head>
 <body>
 <canvas id="gl" aria-label="Chess board"></canvas>
@@ -18,10 +26,10 @@
     <div class="stat rew" id="hRewBox"><span id="hRewLbl"></span><b id="hRew">$0</b><small id="hRewSub"></small></div>
   </div>
   <div class="money"><span id="hGoldLbl"></span><b id="hGold">$0</b></div>
-  <div class="blk"><div class="lbl" id="hRelLbl"></div><div class="slots" id="hRelics"></div></div>
-  <div class="blk"><div class="lbl" id="hConsLbl"></div><div class="slots" id="hCons"></div></div>
+  <div class="blk" id="hRelBlk"><div class="lbl" id="hRelLbl"></div><div class="slots" id="hRelics"></div></div>
+  <div class="blk" id="hConsBlk"><div class="lbl" id="hConsLbl"></div><div class="slots" id="hCons"></div></div>
   <div class="blk" id="hVouchBlk" hidden><div class="lbl" id="hVouchLbl"></div><div class="slots" id="hVouch"></div></div>
-  <div class="btns"><button class="btn ghost small" id="bPause" type="button"></button><button class="btn ghost small" id="bBadges" type="button"></button></div>
+  <div class="btns" id="hBtns"><button class="btn ghost small" id="bPause" type="button"></button><button class="btn ghost small" id="bBadges" type="button"></button></div>
 </aside>
 
 <aside id="hudR" class="hud" hidden>
@@ -34,6 +42,7 @@
 <div id="toast" hidden></div>
 <div id="tip" hidden></div>
 <button class="btn gold" id="peekBack" type="button" hidden></button>
+<button class="btn ghost small" id="bCam" type="button" hidden></button>
 <div id="ov"><div class="screen" id="scr"></div></div>
 
 <script type="module" src="/src/main.js"></script>

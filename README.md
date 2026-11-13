@@ -25,6 +25,8 @@
 
 **Без установки:** скачайте `last-gambit.html` из релиза и откройте его двойным щелчком, или играйте в браузере на GitHub Pages по адресу `https://<ваш-ник>.github.io/<репозиторий>/` (включается в Settings → Pages → Source: GitHub Actions).
 
+**Телефоны и планшеты:** откройте браузерную версию на GitHub Pages. Интерфейс подстраивается под экран: на телефоне в портретной ориентации панели уходят наверх и вниз, а доска занимает середину; в альбомной ориентации панели становятся узкими колонками по бокам. Чтобы игра открывалась на весь экран как приложение, добавьте её на главный экран («Поделиться → На экран „Домой“» в Safari или «Установить приложение» в Chrome).
+
 ## Как играть
 
 1. **Выберите задачу.** В каждом анте их три: лёгкая, средняя и тяжёлая. Тяжёлая — это босс со своим условием.
@@ -82,6 +84,19 @@
 | Подсказка (обучение) | H |
 | Отменить ход (обучение) | Z |
 | Значки над фигурами | B |
+| Приблизить доску | колесико мыши |
+
+На сенсорном экране:
+
+| Действие | Как |
+|---|---|
+| Ход | коснитесь фигуры, затем клетки |
+| Изучить вражескую фигуру | коснитесь её |
+| Повернуть доску | проведите пальцем по доске |
+| Приблизить и сдвинуть | двумя пальцами |
+| Вернуть вид | кнопка «Сбросить камеру» или двойное касание пустого места |
+| Расходник | первое касание показывает описание, второе применяет |
+| Пауза | кнопка ❚❚ в верхней панели |
 
 Язык (русский или английский) выбирается в настройках главного меню.
 
@@ -145,7 +160,7 @@ npm run build:single # dist-single/index.html — вся игра в одном 
 
 **Training mode** adds a coach. Hints come in two steps: first the idea, then the move with an explanation. The coach comments on the opponent's replies and warns you when a move throws away a forced mate. Undo is free, failed puzzles can be retried, and records are not saved.
 
-**Download** the installer for Windows, macOS or Linux from [Releases](../../releases/latest) (about 5–7 MB, works offline), or play the browser version on GitHub Pages. Antes 1–2 use Lichess puzzles; from ante 3 the puzzles are random positions with a mate proven by search, and enemy pieces gain modifiers (armour or an extra move) that ramp up every ante. Spare relics can be sold in the shop, and each ante offers a Balatro-style voucher: a permanent upgrade for the whole run, $10 for the first and $5 more for each one after. Rerolls start at $5 and rise by $1 each. From ante 7 the opponent defends harder and the puzzles get tighter. Runs are saved after every move, so quitting mid-puzzle resumes the exact same position. Esc opens the pause menu, and holding the mouse wheel turns the board. The main menu has 28 achievements, lifetime statistics and settings. Switch to English in Settings on the main menu. Your pieces are cream, the opponent's are red, and a badge above each piece shows its type.
+**Download** the installer for Windows, macOS or Linux from [Releases](../../releases/latest) (about 5–7 MB, works offline), or play the browser version on GitHub Pages. Antes 1–2 use Lichess puzzles; from ante 3 the puzzles are random positions with a mate proven by search, and enemy pieces gain modifiers (armour or an extra move) that ramp up every ante. Spare relics can be sold in the shop, and each ante offers a Balatro-style voucher: a permanent upgrade for the whole run, $10 for the first and $5 more for each one after. Rerolls start at $5 and rise by $1 each. From ante 7 the opponent defends harder and the puzzles get tighter. Runs are saved after every move, so quitting mid-puzzle resumes the exact same position. Esc opens the pause menu, holding the mouse wheel turns the board and scrolling zooms. On phones and tablets the layout adapts to portrait and landscape: tap to move, tap an enemy to inspect it, swipe to turn the board, pinch to zoom; add the GitHub Pages version to your home screen to play it full screen. The main menu has 28 achievements, lifetime statistics and settings. Switch to English in Settings on the main menu. Your pieces are cream, the opponent's are red, and a badge above each piece shows its type.
 
 **Building from source:** `npm install`, then `npm run dev` for the browser or `npm run app:build` for a desktop installer (needs Rust). Push a `v*` tag and GitHub Actions builds installers for all three systems.
 

@@ -1,0 +1,24 @@
+{
+  "name": "Последний гамбит · The Last Gambit",
+  "short_name": "Last Gambit",
+  "description": "Шахматный рогалик: мат за лимит ходов, прокачка фигур, реликвии и лавка.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0b0e13",
+  "theme_color": "#0b0e13",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -34,6 +34,14 @@ function tone(freq, dur, type = 'square', vol = 0.06, slide = 0, delay = 0) {
     o.connect(g); g.connect(AC.destination); o.start(tt); o.stop(tt + dur + 0.02);
   } catch (e) { /* audio unavailable */ }
 }
+function unlockAudio() {
+  if (muted) return;
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+  } catch (e) { /* audio unavailable */ }
+}
+['pointerdown', 'touchend', 'keydown'].forEach(ev => addEventListener(ev, unlockAudio, { passive: true, capture: true }));
 const SFX = {
   select: () => tone(660, .06, 'triangle', .07),
   move: () => { tone(320, .07, 'square', .05, -120); tone(180, .05, 'triangle', .05, 0, .06); },
@@ -60,7 +68,10 @@ const camTarget = new THREE.Vector3(0, 0, 0.3), camBase = new THREE.Vector3();
 /* Orbit camera: hold the middle mouse button and drag. Angles in degrees; *T are the targets the view eases toward. */
 const CAM_DEFAULT = { yaw: 0, pitch: 45 };
 let camYaw = 0, camPitch = 45, camYawT = 0, camPitchT = 45, camDist = 12, camDrag = null, lastMiddleUp = 0;
-function resetCamera() { camYawT = CAM_DEFAULT.yaw; camPitchT = CAM_DEFAULT.pitch; }
+/* Zoom (pinch or mouse wheel) and pan (two fingers) on top of the auto-fitted view. */
+let camZoom = 1, camZoomT = 1;
+const camPan = new THREE.Vector3(), camPanT = new THREE.Vector3(), camLook = new THREE.Vector3();
+function resetCamera() { camYawT = CAM_DEFAULT.yaw; camPitchT = CAM_DEFAULT.pitch; camZoomT = 1; camPanT.set(0, 0, 0); }
 const rt = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat });
 
 const POST_FRAG = `
@@ -122,23 +133,66 @@ function curveJS(u, v) {
 }
 function invCurve(u, v) { let a = u, b = v; for (let i = 0; i < 4; i++) { const c = curveJS(a, b); a -= c[0] - u; b -= c[1] - v; } return [a, b]; }
 
-let W = 1, H = 1, MOBILE = false;
+/* Screen layouts: desk (HUD columns at the sides), port (tall phones and tablets: HUD bar on top, info panel at the
+   bottom) and land (phones held sideways: slim side columns). CSS styles each one through body[data-layout]. */
+let W = 1, H = 1, MOBILE = false, LAYOUT = 'desk';
+const TOUCH = matchMedia('(hover: none), (pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+function pickLayout() {
+  if (W > H && H < 600) return 'land';
+  if (W < 820 || H > W * 1.15) return 'port';
+  return 'desk';
+}
 function resize() {
-  W = innerWidth; H = innerHeight; MOBILE = W < 820;
+  /* visualViewport tracks the real visible area when mobile browser toolbars slide in and out. */
+  W = Math.round(innerWidth); H = Math.round(innerHeight);
+  LAYOUT = pickLayout(); MOBILE = LAYOUT !== 'desk';
+  document.body.dataset.layout = LAYOUT;
+  document.body.classList.toggle('touch', TOUCH);
+  renderer.setPixelRatio(Math.min(MOBILE ? 2.5 : 2, window.devicePixelRatio || 1));
   renderer.setSize(W, H, false);
-  const pix = MOBILE ? 2 : 3;
+  const pix = Math.min(W, H) < 500 ? 2 : 3;
   const lw = Math.max(1, Math.ceil(W / pix)), lh = Math.max(1, Math.ceil(H / pix));
   rt.setSize(lw, lh); postMat.uniforms.lowRes.value.set(lw, lh);
   camera.aspect = W / H;
-  const availW = MOBILE ? W - 16 : Math.max(320, W - 2 * (16 + 252 + 20));
-  const availH = MOBILE ? H * 0.46 : H - 96;
+  lastFitKey = ''; fitCamera();
+}
+/* The rectangle of the screen the HUD leaves for the board. */
+function freeRect() {
+  const shown = el => { if (!el || el.hidden) return null; const r = el.getBoundingClientRect(); return r.width && r.height ? r : null; };
+  const hl = shown(hudL), hr = shown(hudR);
+  if (LAYOUT === 'port') {
+    const t = hl ? hl.bottom + 4 : H * 0.18, b = (hr ? hr.top : H * 0.8) - 40;
+    return { l: 4, r: W - 4, t, b };
+  }
+  if (LAYOUT === 'land') {
+    const l = hl ? hl.right + 4 : 190, r = hr ? hr.left - 4 : W - 196;
+    return { l, r, t: 4, b: H - 38 };
+  }
+  return { l: 16 + 252 + 20, r: W - (16 + 268 + 20), t: 12, b: H - 84 };
+}
+let lastFitKey = '';
+function fitCamera() {
+  const f = freeRect();
+  const key = [W, H, LAYOUT, f.l, f.r, f.t, f.b].map(v => typeof v === 'number' ? Math.round(v) : v).join(',');
+  if (key === lastFitKey) return;
+  lastFitKey = key;
+  const availW = Math.max(160, f.r - f.l), availH = Math.max(140, f.b - f.t);
   const needH = Math.max(11.2 * W / availW / camera.aspect, 8.8 * H / availH);
-  const d = needH / (2 * Math.tan(FOV * Math.PI / 360));
-  camDist = d;
-  if (MOBILE) camera.setViewOffset(W, H, 0, -H * 0.05, W, H); else camera.clearViewOffset();
+  camDist = needH / (2 * Math.tan(FOV * Math.PI / 360));
+  const cx = (f.l + f.r) / 2, cy = (f.t + f.b) / 2;
+  if (Math.abs(cx - W / 2) > 1 || Math.abs(cy - H / 2) > 1) camera.setViewOffset(W, H, W / 2 - cx, H / 2 - cy, W, H);
+  else camera.clearViewOffset();
   camera.updateProjectionMatrix();
+  /* Status line and toasts sit just outside the HUD on compact layouts. */
+  const rs = document.documentElement.style;
+  rs.setProperty('--fr-t', Math.round(f.t) + 'px'); rs.setProperty('--fr-r', Math.round(W - f.r) + 'px');
+  if (LAYOUT === 'port') { rs.setProperty('--sb', Math.round(H - f.b - 34) + 'px'); rs.setProperty('--ft', Math.round(f.t) + 'px'); }
+  else if (LAYOUT === 'land') { rs.setProperty('--sb', '6px'); rs.setProperty('--ft', '8px'); }
+  else { rs.removeProperty('--sb'); rs.removeProperty('--ft'); }
 }
 addEventListener('resize', resize);
+addEventListener('orientationchange', () => setTimeout(resize, 250));
+if (window.visualViewport) visualViewport.addEventListener('resize', () => { if (Math.round(innerWidth) !== W || Math.round(innerHeight) !== H) resize(); });
 
 /* ---------- lights ---------- */
 scene.add(new THREE.HemisphereLight(0xc6dcff, 0x3a1f2e, 0.62));
@@ -583,7 +637,7 @@ function renderStatic() {
   $('#hMovesBox').dataset.tip = t('tip_moves'); $('#hRewBox').dataset.tip = t('tip_reward');
   $('#bPause').textContent = t('hud_pause');
   $('#bBadges').textContent = SHOW_BADGES ? t('badges_on') : t('badges_off'); $('#bBadges').dataset.tip = t('tip_badges');
-  $('#peekBack').textContent = t('back');
+  $('#peekBack').textContent = t('back'); $('#bCam').textContent = t('pause_camera');
 }
 function renderHUD() {
   renderStatic();
@@ -637,18 +691,30 @@ function refreshMarks() {
 }
 
 /* ---------- tooltips ---------- */
+/* With a mouse the tooltip follows the pointer. On touch screens a tap shows it next to the element for a few seconds. */
+let tipTimer = 0, lastPtrType = 'mouse', consPeek = -1, consPeekTimer = 0;
+addEventListener('pointerdown', e => { lastPtrType = e.pointerType || 'mouse'; }, { capture: true, passive: true });
+function placeTipNear(el) {
+  const r = el.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+  const x = Math.max(8, Math.min(r.left + r.width / 2 - tw / 2, W - tw - 8));
+  const y = r.bottom + 8 + th < H - 8 ? r.bottom + 8 : Math.max(8, r.top - th - 8);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  clearTimeout(tipTimer); tipTimer = setTimeout(() => { tip.hidden = true; }, 2800);
+}
 document.addEventListener('pointerover', e => {
   const tg = e.target.closest('[data-tip]');
-  if (tg) { const [h, b] = tg.dataset.tip.split('|'); tip.innerHTML = `<b>${esc(h)}</b>${esc(b || '')}`; tip.hidden = false; }
+  if (tg) { const [h, b] = tg.dataset.tip.split('|'); tip.innerHTML = `<b>${esc(h)}</b>${esc(b || '')}`; tip.hidden = false; if (e.pointerType !== 'mouse') placeTipNear(tg); }
   const arm = e.target.closest('[data-arm]');
   if (arm) { const a = armyById(+arm.dataset.arm); if (a) $('#pieceCard').innerHTML = armyEntryCard(a); }
 });
 document.addEventListener('pointerout', e => {
+  if (e.pointerType !== 'mouse') return;
   if (e.target.closest('[data-tip]')) tip.hidden = true;
   if (e.target.closest('[data-arm]')) renderPieceCard();
 });
+document.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && !e.target.closest('[data-tip]')) tip.hidden = true; }, { passive: true });
 document.addEventListener('pointermove', e => {
-  if (tip.hidden) return;
+  if (tip.hidden || e.pointerType !== 'mouse') return;
   const x = Math.min(e.clientX + 14, W - tip.offsetWidth - 8), y = Math.min(e.clientY + 14, H - tip.offsetHeight - 8);
   tip.style.left = x + 'px'; tip.style.top = y + 'px';
 });
@@ -656,7 +722,7 @@ document.addEventListener('pointermove', e => {
 /* ============================== flow ============================== */
 /* Main menu backdrop: the demo board behind the menu screens. */
 function enterMenu() {
-  flushPlaytime(); G.token++; saveProfile(true); closePause(); camDrag = null;
+  flushPlaytime(); G.token++; saveProfile(true); closePause(); camDrag = null; camZoomT = 1; camPanT.set(0, 0, 0);
   if (G.mode !== 'menu') { G.board = demoBoard(); G.lastMove = null; clearMeshes(); syncMeshes(G.board); refreshMarks(); }
   G.mode = 'menu'; G.enc = null; G.busy = false; hudL.hidden = hudR.hidden = true; setStatus(null); $('#peekBack').hidden = true;
   document.title = t('doc_title');
@@ -1269,7 +1335,9 @@ function pickSq(cx, cy) {
   }
   return -1;
 }
+/* ----- mouse: hover to inspect, left click to act, middle drag to orbit, wheel to zoom ----- */
 canvas.addEventListener('pointermove', e => {
+  if (e.pointerType !== 'mouse') { touchMove(e); return; }
   if (camDrag) {
     const dx = e.clientX - camDrag.x, dy = e.clientY - camDrag.y;
     if (Math.abs(dx) + Math.abs(dy) > 3) camDrag.moved = true;
@@ -1285,8 +1353,9 @@ canvas.addEventListener('pointermove', e => {
   const actionable = G.targeting ? targetSquares(G.targeting.id).includes(sq) : (p && p.s === 'w') || (G.sel >= 0 && G.moves.some(m => m.f === G.sel && m.t === sq));
   canvas.style.cursor = actionable ? 'pointer' : 'default';
 });
-canvas.addEventListener('pointerleave', () => { if (G.hover !== -1) { G.hover = -1; refreshMarks(); renderPieceCard(); } });
+canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && G.hover !== -1) { G.hover = -1; refreshMarks(); renderPieceCard(); } });
 canvas.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'mouse') { touchDown(e); return; }
   if (e.button === 1) {
     e.preventDefault();
     camDrag = { x: e.clientX, y: e.clientY, yaw: camYawT, pitch: camPitchT, moved: false };
@@ -1295,22 +1364,95 @@ canvas.addEventListener('pointerdown', e => {
     return;
   }
   if (e.button !== 0) return;
-  if (G.mode !== 'play' || G.busy || pauseOpen) return;
-  const sq = pickSq(e.clientX, e.clientY); if (sq < 0) { deselect(); return; }
-  if (G.targeting) { applyTarget(sq); return; }
-  if (G.sel >= 0) { const m = G.moves.find(mm => mm.f === G.sel && mm.t === sq); if (m) { playerMove(m); return; } }
-  const p = G.board[sq];
-  if (p && p.s === 'w') selectSq(sq); else deselect();
+  boardTap(e.clientX, e.clientY, false);
 });
-canvas.addEventListener('contextmenu', e => { e.preventDefault(); deselect(); });
+canvas.addEventListener('contextmenu', e => { e.preventDefault(); if (!lastWasTouch) deselect(); });
 canvas.addEventListener('pointerup', e => {
+  if (e.pointerType !== 'mouse') { touchUp(e); return; }
   if (e.button !== 1 || !camDrag) return;
   if (!camDrag.moved) { if (performance.now() - lastMiddleUp < 400) resetCamera(); lastMiddleUp = performance.now(); }
   camDrag = null; canvas.style.cursor = 'default';
 });
+canvas.addEventListener('pointercancel', e => { if (e.pointerType !== 'mouse') touchUp(e, true); });
 /* Stops the browser's middle-click autoscroll on Windows and Linux. */
 canvas.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
 canvas.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (G.mode !== 'play' || pauseOpen) return;
+  camZoomT = Math.max(1, Math.min(2.2, camZoomT * Math.exp(-e.deltaY * 0.0015)));
+  if (camZoomT === 1) camPanT.set(0, 0, 0);
+}, { passive: false });
+
+/* One tap or click on the board: act on a square. On touch screens a tap on an enemy piece inspects it,
+   since there is no hover. */
+function boardTap(x, y, touch) {
+  if (G.mode !== 'play' || G.busy || pauseOpen) return;
+  const sq = pickSq(x, y);
+  if (touch && G.hover !== -1) G.hover = -1;
+  if (sq < 0) { deselect(); return; }
+  if (G.targeting) { applyTarget(sq); return; }
+  if (G.sel >= 0) { const m = G.moves.find(mm => mm.f === G.sel && mm.t === sq); if (m) { playerMove(m); return; } }
+  const p = G.board[sq];
+  if (p && p.s === 'w') selectSq(sq);
+  else { deselect(); if (touch && p) { G.hover = sq; SFX.select(); refreshMarks(); renderPieceCard(); } }
+}
+
+/* ----- touch: tap to act, one-finger drag to orbit, two fingers to zoom and pan, double tap on empty space to reset ----- */
+const touchPts = new Map();
+let tap = null, gesture = null, lastWasTouch = false, lastEmptyTap = 0;
+function touchDown(e) {
+  lastWasTouch = true;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+  touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touchPts.size === 1) {
+    tap = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: false, yaw: camYawT, pitch: camPitchT };
+    gesture = null;
+  } else if (touchPts.size === 2) {
+    tap = null;
+    const [a, b] = [...touchPts.values()];
+    gesture = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, zoom: camZoomT, pan: camPanT.clone() };
+  }
+}
+function touchMove(e) {
+  const pt = touchPts.get(e.pointerId); if (!pt) return;
+  pt.x = e.clientX; pt.y = e.clientY;
+  if (gesture && touchPts.size >= 2) {
+    const [a, b] = [...touchPts.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y) || 1, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    camZoomT = Math.max(1, Math.min(2.2, gesture.zoom * d / gesture.d));
+    /* Pan along the board: screen movement converted to world units at the current distance. */
+    const worldPerPx = 2 * (camDist / camZoomT) * Math.tan(FOV * Math.PI / 360) / H;
+    const yr = camYaw * Math.PI / 180;
+    const right = new THREE.Vector3(Math.cos(yr), 0, -Math.sin(yr)), fwd = new THREE.Vector3(-Math.sin(yr), 0, -Math.cos(yr));
+    const dx = (mx - gesture.mx) * worldPerPx, dy = (my - gesture.my) * worldPerPx / Math.max(.4, Math.sin(camPitch * Math.PI / 180));
+    camPanT.copy(gesture.pan).addScaledVector(right, -dx).addScaledVector(fwd, dy);
+    const lim = 4.5 * (1 - 1 / camZoomT) + .5;
+    camPanT.x = Math.max(-lim, Math.min(lim, camPanT.x)); camPanT.z = Math.max(-lim, Math.min(lim, camPanT.z));
+    return;
+  }
+  if (tap && tap.id === e.pointerId) {
+    const dx = e.clientX - tap.x, dy = e.clientY - tap.y;
+    if (!tap.moved && Math.hypot(dx, dy) > 12) tap.moved = true;
+    if (tap.moved) {
+      camYawT = tap.yaw - dx * 0.4;
+      camPitchT = Math.max(18, Math.min(82, tap.pitch + dy * 0.3));
+    }
+  }
+}
+function touchUp(e, cancelled) {
+  touchPts.delete(e.pointerId);
+  if (touchPts.size < 2) gesture = null;
+  if (!tap || tap.id !== e.pointerId) return;
+  const t0 = tap; tap = null;
+  if (cancelled || t0.moved || touchPts.size) return;
+  if (G.mode === 'play' && !pauseOpen && pickSq(e.clientX, e.clientY) < 0) {
+    const now = performance.now();
+    if (now - lastEmptyTap < 350) { resetCamera(); lastEmptyTap = 0; return; }
+    lastEmptyTap = now;
+  }
+  boardTap(e.clientX, e.clientY, true);
+}
 function selectSq(sq) {
   const p = G.board[sq]; if (G.sel === sq) { deselect(); return; }
   G.sel = sq; SFX.select();
@@ -1364,12 +1506,22 @@ document.addEventListener('click', e => {
   }
   const b = e.target.closest('[data-buy]'); if (b) { const [row, ix] = b.dataset.buy.split(':'); buy(row, +ix); return; }
   const sl = e.target.closest('[data-sell]'); if (sl) { sellRelic(sl.dataset.sell); return; }
-  const c = e.target.closest('[data-cons]'); if (c) { useCons(+c.dataset.cons); return; }
+  const c = e.target.closest('[data-cons]');
+  if (c) {
+    /* On touch screens the first tap shows what the consumable does, the second one uses it. */
+    const ix = +c.dataset.cons;
+    if (lastPtrType !== 'mouse' && consPeek !== ix && !(G.targeting && G.targeting.ix === ix)) {
+      consPeek = ix; clearTimeout(consPeekTimer); consPeekTimer = setTimeout(() => { consPeek = -1; }, 2800); SFX.select(); return;
+    }
+    consPeek = -1; useCons(ix); return;
+  }
   const arm = e.target.closest('[data-arm]');
   if (arm && G.mode === 'play' && !G.busy) { const i = G.board.findIndex(p => p && p.id === +arm.dataset.arm); if (i >= 0) selectSq(i); }
 });
 $('#peekBack').addEventListener('click', () => { $('#peekBack').hidden = true; ov.hidden = false; setStatus(null); });
 $('#bPause').addEventListener('click', openPause);
+const bCam = $('#bCam');
+bCam.addEventListener('click', () => { resetCamera(); bCam.hidden = true; SFX.select(); });
 $('#bBadges').addEventListener('click', () => setBadges(!SHOW_BADGES));
 $('#bHint').addEventListener('click', askHint);
 $('#bHintPlay').addEventListener('click', playHint);
@@ -1400,7 +1552,7 @@ let playAcc = 0;
 function flushPlaytime() { if (playAcc >= 1) { track('playtime', { seconds: Math.floor(playAcc) }); playAcc -= Math.floor(playAcc); } }
 
 /* ============================== loop ============================== */
-let last = performance.now(), time = 0;
+let last = performance.now(), time = 0, fitTimer = 0;
 function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt;
@@ -1425,14 +1577,22 @@ function loop(now) {
     if (m && !m.userData.anim) { m.position.y = .08 + Math.sin(time * 5) * .05; const v = sqPos(G.sel); selLight.position.set(v.x, 1.2, v.z); selLight.intensity = 1.4; }
   } else selLight.intensity = 0;
   for (const m of meshes.values()) if (!m.userData.anim && m.userData.k !== selK && m.position.y > 0 && m.position.y < .2) m.position.y = Math.max(0, m.position.y - dt);
+  fitTimer -= dt; if (fitTimer <= 0) {
+    fitTimer = .25; fitCamera();
+    /* The reset-view button shows up only while the view has been turned, zoomed or moved. */
+    const moved = Math.abs(camYawT - CAM_DEFAULT.yaw) > 1 || Math.abs(camPitchT - CAM_DEFAULT.pitch) > 1 || camZoomT > 1.02 || camPanT.lengthSq() > .01;
+    const showCam = G.mode === 'play' && moved && !pauseOpen && ov.hidden;
+    if (bCam.hidden === showCam) bCam.hidden = !showCam;
+  }
   { const k = Math.min(1, dt * 10); camYaw += (camYawT - camYaw) * k; camPitch += (camPitchT - camPitch) * k;
+    camZoom += (camZoomT - camZoom) * k; camPan.lerp(camPanT, k); camLook.copy(camTarget).add(camPan);
     const yr = camYaw * Math.PI / 180, pr = camPitch * Math.PI / 180;
-    camBase.set(Math.sin(yr) * Math.cos(pr), Math.sin(pr), Math.cos(yr) * Math.cos(pr)).multiplyScalar(camDist).add(camTarget); }
+    camBase.set(Math.sin(yr) * Math.cos(pr), Math.sin(pr), Math.cos(yr) * Math.cos(pr)).multiplyScalar(camDist / camZoom).add(camLook); }
   camera.position.copy(camBase);
   const par = camDrag ? 0 : 1;
   camera.position.x += Math.sin(time * .3) * .12 + mouseNX * .35 * par;
   camera.position.y += Math.sin(time * .23) * .06 - mouseNY * .2 * par;
-  camera.lookAt(camTarget);
+  camera.lookAt(camLook);
   let sx = 0, sy = 0;
   if (shakeT > 0) { shakeT -= dt; sx = (Math.random() - .5) * shakeAmp; sy = (Math.random() - .5) * shakeAmp; } else shakeAmp = 0;
   const u = postMat.uniforms; u.time.value = time; u.shake.value.set(sx, sy); u.flash.value *= Math.pow(0.02, dt);
@@ -1462,4 +1622,6 @@ export async function boot() {
   await showSplash();
   showMenu();
 }
-window.__LG = { G, syncMeshes, jumpToAnte: a => { G.encIndex = (a - 1) * 3; newAnte(); showSelect(); }, shop: () => { advanceEnc(); showShop(); }, play: m => playerMove(m), askHint, findHintMove, explainMove, legal, applyMove, aiChoose, parsePuzzle, BANK, setLang, inCheck, hasLegal, profile };
+/* Screen position of a square's centre, used by the automated device tests. */
+function sqScreen(i) { const v = sqPos(i).clone(); v.project(camera); const [u, w] = invCurve((v.x + 1) / 2, (v.y + 1) / 2); return [u * W, (1 - w) * H]; }
+window.__LG = { G, syncMeshes, camera, sqScreen, camState: () => ({ yaw: camYawT, pitch: camPitchT, zoom: camZoomT, layout: LAYOUT, free: freeRect(), fit: lastFitKey, dist: camDist }), jumpToAnte: a => { G.encIndex = (a - 1) * 3; newAnte(); showSelect(); }, shop: () => { advanceEnc(); showShop(); }, play: m => playerMove(m), askHint, findHintMove, explainMove, legal, applyMove, aiChoose, parsePuzzle, BANK, setLang, inCheck, hasLegal, profile };

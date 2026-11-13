@@ -179,7 +179,9 @@ export const STR = {
 export let LANG = 'ru';
 try { LANG = localStorage.getItem('last-gambit-lang') || ''; } catch (e) { LANG = ''; }
 if (LANG !== 'ru' && LANG !== 'en') LANG = /^(ru|uk|be|kk)/i.test(navigator.language || '') ? 'ru' : 'en';
-export const t = (k, v) => { let s = STR[LANG][k] ?? STR.ru[k] ?? k; if (v && typeof s === 'string') s = s.replace(/\{(\w+)\}/g, (_, x) => typeof v[x] === 'function' ? v[x]() : (v[x] ?? '')); return s; };
+/* Touch screens get their own wording where the desktop text talks about hovering, the mouse or Esc. */
+const TOUCH_UI = typeof matchMedia === 'function' && (matchMedia('(hover: none), (pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+export const t = (k, v) => { let s = (TOUCH_UI ? STR[LANG][k + '_touch'] ?? STR.ru[k + '_touch'] : undefined) ?? STR[LANG][k] ?? STR.ru[k] ?? k; if (v && typeof s === 'string') s = s.replace(/\{(\w+)\}/g, (_, x) => typeof v[x] === 'function' ? v[x]() : (v[x] ?? '')); return s; };
 export const L = o => o ? (o[LANG] ?? o.ru) : '';
 export const plural = n => {
   const f = t('moves_word');
@@ -190,4 +192,22 @@ document.documentElement.lang = LANG;
 
 
 Object.assign(STR.ru, META_STR.ru); Object.assign(STR.en, META_STR.en);
+Object.assign(STR.ru, {
+  piece_hint_touch: 'Коснитесь своей фигуры, чтобы увидеть её ходы. Коснитесь врага, чтобы изучить его.',
+  army_hint_touch: 'В каждой задаче ваши фигуры занимают места фигур своего типа: прокачанный конь станет конём, если в задаче есть конь. Коснитесь фигуры в списке, чтобы увидеть её ходы.',
+  army_hover_touch: 'Ваша армия · коснитесь, чтобы увидеть ходы',
+  st_target_touch: '{name}: выберите цель (пустое место — отмена)',
+  tip_cons_use_touch: ' (коснитесь ещё раз, чтобы применить)',
+  pause_hint_touch: 'Проведите пальцем по доске, чтобы повернуть её; двумя пальцами — приблизить и сдвинуть. Кнопка «Сбросить камеру» или двойное касание пустого места возвращают вид. Прогресс сохраняется, даже если выйти посреди задачи.',
+  hud_pause_touch: 'Пауза'
+});
+Object.assign(STR.en, {
+  piece_hint_touch: 'Tap one of your pieces to see its moves. Tap an enemy to inspect it.',
+  army_hint_touch: 'In every puzzle your pieces take the places of pieces of the same type: an upgraded knight becomes the knight if the puzzle has one. Tap a piece in the list to see its moves.',
+  army_hover_touch: 'Your army · tap to see moves',
+  st_target_touch: '{name}: pick a target (tap empty space to cancel)',
+  tip_cons_use_touch: ' (tap again to use)',
+  pause_hint_touch: 'Swipe across the board to turn it; use two fingers to zoom and move it. The Reset camera button or a double tap on empty space restores the view. Progress is saved even if you quit mid-puzzle.',
+  hud_pause_touch: 'Pause'
+});
 export function setLanguage(l) { if (l !== 'ru' && l !== 'en') return; LANG = l; document.documentElement.lang = l; }
