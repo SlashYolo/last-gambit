@@ -8,6 +8,7 @@ import { track } from './achievements.js';
 import { initMeta, showMenu, showSplash } from './meta.js';
 import { generatePuzzle, genSpec } from './generator.js';
 import GenWorker from './gen.worker.js?worker&inline';
+import { oneMoveWin } from './generator.js';
 
 /* ============================== utils ============================== */
 const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
@@ -520,30 +521,54 @@ function pickPuzzle(kind, ante) {
 }
 /* ---------- generated positions: from ante 3 the Lichess bank gives way to random positions with a proven forced mate ---------- */
 const GEN_FROM = 3;
-let genWorker = null, genSeq = 0;
+/* Two background threads: one prefetches the next ante, the other replaces a puzzle the player is waiting for,
+   so an urgent request never queues behind the prefetch. */
+const genWorkers = {}; let genSeq = 0;
 const genWaiters = new Map(), genCache = new Map();
-function workerGen(ante, kind) {
+function workerGen(ante, kind, lane = 'bg') {
   return new Promise(res => {
     try {
-      if (!genWorker) {
-        genWorker = new GenWorker();
-        genWorker.onmessage = e => { const w = genWaiters.get(e.data.id); genWaiters.delete(e.data.id); if (w) w(e.data.rec); };
-        genWorker.onerror = () => { genWorker = null; for (const w of genWaiters.values()) w(null); genWaiters.clear(); };
+      if (!genWorkers[lane]) {
+        const w = new GenWorker();
+        w.onmessage = e => { const f = genWaiters.get(e.data.id); genWaiters.delete(e.data.id); if (f) f(e.data.rec); };
+        w.onerror = () => { genWorkers[lane] = null; for (const [id, f] of genWaiters) if (f.lane === lane) { genWaiters.delete(id); f(null); } };
+        genWorkers[lane] = w;
       }
-      const id = ++genSeq; genWaiters.set(id, res); genWorker.postMessage({ id, ante, kind });
+      const id = ++genSeq; res.lane = lane; genWaiters.set(id, res); genWorkers[lane].postMessage({ id, ante, kind, army: armySpec() });
     } catch (e) { res(null); }
   });
 }
 /* Fallback when workers are unavailable: a short search on the main thread, then the hardest bank puzzles. */
 function mainThreadGen(ante, kind) {
-  const r = generatePuzzle({ ...genSpec(ante, kind), minN: 2, maxN: 2, mods: Math.min(1, genSpec(ante, kind).mods) }, 1500);
+  const r = generatePuzzle({ ...genSpec(ante, kind), minN: 2, maxN: 2, mods: Math.min(1, genSpec(ante, kind).mods) }, 1500, armySpec());
   return r ? r.rec : pickPuzzle(2, 99).rec;
 }
-function generated(ante, kind) {
+function generated(ante, kind, lane = 'bg') {
   const key = ante + ':' + kind;
-  if (!genCache.has(key)) genCache.set(key, workerGen(ante, kind).then(rec => rec || mainThreadGen(ante, kind)));
+  if (!genCache.has(key)) genCache.set(key, workerGen(ante, kind, lane).then(rec => rec || mainThreadGen(ante, kind)));
   return genCache.get(key);
 }
+/* The army as the generator needs it: move patterns and the order in which members take their places. */
+const armySpec = () => G.army.map(a => ({ id: a.id, t: a.t, mv: mvOf(a), pw: power(a) }));
+/* Upgrades bought after a puzzle was picked can make it a one-move win. Such a puzzle is swapped:
+   another bank puzzle right away, or a fresh generated position that takes the current army into account. */
+function ensureFair(enc) {
+  if (!enc.P || enc.fairFor === armyKey()) return true;
+  const army = armySpec();
+  if (!oneMoveWin(enc.P, army)) { enc.fairFor = armyKey(); return true; }
+  if (!enc.P.gen) {
+    for (let i = 0; i < 40; i++) { setEncPuzzle(enc, null); if (!oneMoveWin(enc.P, army)) { enc.fairFor = armyKey(); return true; } }
+    return true;
+  }
+  enc.P = null; genCache.delete(enc.ante + ':' + enc.kind); awaitGenerated(enc, 'now');
+  return false;
+}
+/* After an upgrade, the remaining puzzles of the ante are checked at once, so a replacement can be generated while the player shops. */
+function recheckAhead() {
+  const cur = G.encIndex % 3;
+  G.anteEncs.forEach((e, ix) => { if (ix >= cur && e.P) ensureFair(e); });
+}
+const armyKey = () => G.army.map(a => a.id + ':' + mvOf(a).join('')).join(',');
 function prefetchAnte(ante) { if (ante >= GEN_FROM) for (const k of [0, 1, 2]) generated(ante, k); }
 function setEncPuzzle(enc, rec, saved) {
   const P = rec ? Object.assign(parsePuzzle(rec), { rec }) : pickPuzzle(enc.kind, enc.ante);
@@ -557,8 +582,8 @@ function setEncPuzzle(enc, rec, saved) {
   enc.limit = saved ? saved.limit : P.n + slack;
   enc.P = P;
 }
-function awaitGenerated(enc) {
-  enc.ready = generated(enc.ante, enc.kind).then(rec => {
+function awaitGenerated(enc, lane = 'bg') {
+  enc.ready = generated(enc.ante, enc.kind, lane).then(rec => {
     genCache.delete(enc.ante + ':' + enc.kind);
     setEncPuzzle(enc, rec);
     if (G.anteEncs.includes(enc) && G.mode === 'select' && !ov.hidden) showSelect();
@@ -784,6 +809,7 @@ function newRun(training = false) {
 function showSelect() {
   G.mode = 'select'; setStatus(null); G.sel = -1; G.targeting = null; G.lastMove = null; G.hover = -1;
   const enc = G.anteEncs[G.encIndex % 3]; G.enc = enc;
+  if (enc.P) ensureFair(enc);
   if (!enc.P) {
     hudL.hidden = hudR.hidden = false; renderHUD();
     G.rerender = renderGenWait; renderGenWait();
@@ -1308,7 +1334,7 @@ function buy(row, ix) {
   G.gold -= o.cost; o.sold = true;
   const a = o.aid ? armyById(o.aid) : null;
   switch (o.kind) {
-    case 'up': a.ups.push(o.code); G.upgrades = (G.upgrades || 0) + 1; track('upgrades', { count: G.upgrades, training: G.training }); toast(`${nameOf(a)}: ${L(o.title)}`); break;
+    case 'up': a.ups.push(o.code); G.upgrades = (G.upgrades || 0) + 1; track('upgrades', { count: G.upgrades, training: G.training }); toast(`${nameOf(a)}: ${L(o.title)}`); recheckAhead(); break;
     case 'perk': a[o.perk] = true; G.upgrades = (G.upgrades || 0) + 1; track('upgrades', { count: G.upgrades, training: G.training }); toast(`${nameOf(a)}: ${t(o.perk === 'th' ? 'thirst' : 'greed')}`); break;
     case 'relic': G.relics.push(o.id); track('relics', { count: G.relics.length, training: G.training }); toast(t('toast_relic', { name: L(RELICS[o.id].name) })); break;
     case 'cons': G.cons.push(o.id); break;
@@ -1624,4 +1650,4 @@ export async function boot() {
 }
 /* Screen position of a square's centre, used by the automated device tests. */
 function sqScreen(i) { const v = sqPos(i).clone(); v.project(camera); const [u, w] = invCurve((v.x + 1) / 2, (v.y + 1) / 2); return [u * W, (1 - w) * H]; }
-window.__LG = { G, syncMeshes, camera, sqScreen, camState: () => ({ yaw: camYawT, pitch: camPitchT, zoom: camZoomT, layout: LAYOUT, free: freeRect(), fit: lastFitKey, dist: camDist }), jumpToAnte: a => { G.encIndex = (a - 1) * 3; newAnte(); showSelect(); }, shop: () => { advanceEnc(); showShop(); }, play: m => playerMove(m), askHint, findHintMove, explainMove, legal, applyMove, aiChoose, parsePuzzle, BANK, setLang, inCheck, hasLegal, profile };
+window.__LG = { G, syncMeshes, camera, sqScreen, reselect: () => showSelect(), oneMoveWinNow: () => !!(G.enc && G.enc.P && oneMoveWin(G.enc.P, armySpec(), 3000)), camState: () => ({ yaw: camYawT, pitch: camPitchT, zoom: camZoomT, layout: LAYOUT, free: freeRect(), fit: lastFitKey, dist: camDist }), jumpToAnte: a => { G.encIndex = (a - 1) * 3; newAnte(); showSelect(); }, shop: () => { advanceEnc(); showShop(); }, play: m => playerMove(m), askHint, findHintMove, explainMove, legal, applyMove, aiChoose, parsePuzzle, BANK, setLang, inCheck, hasLegal, profile };

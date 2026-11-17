@@ -59,3 +59,33 @@ test('generated positions from ante 3 carry enemy modifiers and stay forced', ()
   const b = applyMove(P.board, P.init);
   assert.ok(withDeadline(10000, () => wMates(b, P.n)), 'mate is not forced');
 });
+
+test('a stalemating move counts as a one-move win for the solver', () => {
+  /* Black king a8, white king c7, white queen b5: Qb6 leaves black without moves and without check. */
+  const b = new Array(64).fill(null);
+  b[56] = piece('b', 'K');        // a8
+  b[50] = piece('w', 'K');        // c7
+  b[33] = piece('w', 'Q');        // b5
+  const r = searchMate(b, 1, 2000);
+  assert.ok(r, 'a win in one move must be found');
+  assert.equal(r.n, 1);
+});
+
+test('generated puzzles are never a one-move win for an upgraded army', async () => {
+  const { oneMoveWin } = await import('../src/generator.js');
+  const army = []; let id = 1;
+  const add = (t, ups) => army.push({ id: id++, t, mv: [...BASE[t], ...ups.filter(c => !BASE[t].includes(c))], pw: ups.length * 2 });
+  add('K', []); add('Q', ['N']); add('R', ['N']); add('R', ['F']); add('B', ['W', 'N']); add('B', []); add('N', ['C', 'Z']); add('N', []);
+  for (let i = 0; i < 8; i++) add('P', i < 3 ? ['Ps'] : []);
+  let made = 0;
+  for (const kind of [0, 1]) {
+    const r = generatePuzzle(genSpec(4, kind), 8000, army);
+    if (!r) continue;
+    made++;
+    const P = parsePuzzle(r.rec);
+    assert.ok(P.n >= 2);
+    assert.equal(oneMoveWin(P, army, 3000), false);
+    assert.equal(searchMate(applyMove(P.board, P.init), 1, 3000), null);
+  }
+  assert.ok(made > 0, 'the generator should find at least one position');
+});

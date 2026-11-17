@@ -90,9 +90,40 @@ function mainLine(b, n, deadline) {
   return line;
 }
 
+/* The player's army takes the places of white pieces of the same type, the same way the game does it:
+   pieces that move in the solution get the strongest members first. army: [{ id, t, mv, pw }]. */
+export function placeArmy(P, army) {
+  const b = P.board.map(p => p ? { ...p, mv: p.mv.slice() } : null);
+  if (!army || !army.length) return b;
+  const taken = new Set();
+  for (const tp of ['K', 'Q', 'R', 'B', 'N', 'P']) {
+    const sqs = b.map((p, i) => p && p.s === 'w' && p.t === tp ? i : -1).filter(i => i >= 0)
+      .sort((x, y) => (P.movers.has(y) ? 1 : 0) - (P.movers.has(x) ? 1 : 0) || x - y);
+    const mem = army.filter(a => a.t === tp && !taken.has(a.id)).sort((x, y) => y.pw - x.pw || x.id - y.id);
+    sqs.forEach((i, n) => { const a = mem[n]; if (!a) return; taken.add(a.id); b[i] = { ...b[i], mv: a.mv.slice(), v: valOf(a.mv) }; });
+  }
+  return b;
+}
+/* True when the puzzle, played with this army, can be won with the very first move although it is meant to take longer. */
+export function oneMoveWin(P, army, ms = 400) {
+  if (P.n < 2) return false;
+  const b = applyMove(placeArmy(P, army), P.init);
+  const r = searchMate(b, 1, ms);
+  return !!r;
+}
+
+/* Every white piece gets all the moves any army member of its type has. If even this board has no one-move win,
+   no way of placing the army can create one, so the check can run early, before the expensive mate search. */
+function strongest(b, army) {
+  const extra = {};
+  for (const a of army) extra[a.t] = [...new Set([...(extra[a.t] || []), ...a.mv])];
+  return b.map(p => p && p.s === 'w' && extra[p.t] ? { ...p, mv: [...new Set([...p.mv, ...extra[p.t]])] } : p);
+}
+
 /* Tries random positions until one passes or the time budget runs out. */
-export function generatePuzzle(spec, budgetMs = 4000) {
+export function generatePuzzle(spec, budgetMs = 4000, army = null) {
   const end = performance.now() + budgetMs;
+  const upgraded = army && army.some(a => a.mv.some(c => !BASE[a.t].includes(c)));
   let tries = 0;
   while (performance.now() < end) {
     tries++;
@@ -103,6 +134,7 @@ export function generatePuzzle(spec, budgetMs = 4000) {
     const init = pick(opening);
     const b1 = applyMove(b0, init);
     if (!hasLegal(b1, 'w') || inCheck(b1, 'w')) continue;
+    if (upgraded && searchMate(strongest(b1, army), 1, 200)) continue;
     const r = searchMate(b1, spec.maxN, Math.min(400, end - performance.now()));
     if (!r || r.n < spec.minN) continue;
     const line = mainLine(b1, r.n, Math.min(end, performance.now() + 1500));
@@ -111,7 +143,8 @@ export function generatePuzzle(spec, budgetMs = 4000) {
     const defenders = b0.filter(p => p && p.s === 'b' && p.t !== 'K').length;
     const rating = Math.min(2600, 1300 + 250 * (r.n - 1) + 40 * defenders + 60 * (spec.ante - 3) + 110 * (lives ? lives.split(',').length : 0));
     const id = 'gen' + Date.now().toString(36) + rnd(1e6).toString(36);
-    return { rec: [id, rating, fenOf(b0), 'b', uci(init), line.map(uci).join(' '), lives].join('|'), tries, n: r.n };
+    const rec = [id, rating, fenOf(b0), 'b', uci(init), line.map(uci).join(' '), lives].join('|');
+    return { rec, tries, n: r.n };
   }
   return null;
 }

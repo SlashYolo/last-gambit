@@ -235,8 +235,9 @@ function wMates(b, k) {
   const list = legal(b, 'w').map(m => { const nb = applyMove(b, m); return { m, nb, chk: inCheck(nb, 'b') }; });
   list.sort((x, y) => (y.chk - x.chk) || (y.m.c - x.m.c));
   for (const s of list) {
-    if (k === 1 && !s.chk) continue;
+    /* A move that leaves black without legal moves wins at once: mate, or stalemate, which also counts as a win. */
     if (!hasLegal(s.nb, 'b')) return s.m;
+    if (k === 1) continue;
     if (k > 1 && bLoses(s.nb, k - 1)) return s.m;
     if (SABORT) return null;
   }

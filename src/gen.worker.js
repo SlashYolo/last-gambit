@@ -3,7 +3,7 @@
 import { generatePuzzle, genSpec } from './generator.js';
 
 self.onmessage = e => {
-  const { id, ante, kind } = e.data;
+  const { id, ante, kind, army } = e.data;
   const base = genSpec(ante, kind);
   const attempts = [
     [base, 14000],
@@ -11,6 +11,6 @@ self.onmessage = e => {
     [{ ...base, minN: 2, maxN: 2, mods: Math.min(base.mods, 1) }, 6000]
   ];
   let rec = null;
-  for (const [spec, ms] of attempts) { const r = generatePuzzle(spec, ms); if (r) { rec = r.rec; break; } }
+  for (const [spec, ms] of attempts) { const r = generatePuzzle(spec, ms, army); if (r) { rec = r.rec; break; } }
   self.postMessage({ id, rec });
 };
