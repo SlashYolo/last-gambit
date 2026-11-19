@@ -619,7 +619,7 @@ let toastTimer = 0;
 function toast(text, ms = 1800) { toastEl.textContent = text; toastEl.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.hidden = true, ms); }
 function setStatus(k, v, cls = '') { G.st = k ? { k, v, cls } : null; paintStatus(); }
 function paintStatus() { const s = G.st; statusEl.textContent = s ? t(s.k, s.v) : ''; statusEl.className = s ? s.cls : ''; statusEl.hidden = !s; }
-function showOverlay(html) { scr.innerHTML = html; ov.hidden = false; tip.hidden = true; }
+function showOverlay(html) { scr.innerHTML = html; ov.hidden = false; tip.hidden = true; if (typeof hideArmyPeek === 'function') hideArmyPeek(); }
 function hideOverlay() { ov.hidden = true; }
 function heartsHTML(hp) { return hp > 0 ? `<div class="hearts"><span class="lives">♥ ${hp}</span></div>` : ''; }
 const relicTip = id => `${L(RELICS[id].name)}|${L(RELICS[id].desc)}`;
@@ -717,6 +717,26 @@ function refreshMarks() {
 
 /* ---------- tooltips ---------- */
 /* With a mouse the tooltip follows the pointer. On touch screens a tap shows it next to the element for a few seconds. */
+/* An army member's moves and upgrades open in a floating card next to the list. Writing them into the piece card above
+   the list changed its height, the list jumped away from the pointer and the hover flickered on and off. */
+const armyPeek = $('#armyPeek');
+let peekFor = 0, peekTimer = 0;
+function showArmyPeek(el, touch) {
+  const a = armyById(+el.dataset.arm); if (!a) return;
+  if (peekFor !== a.id || armyPeek.hidden) { armyPeek.innerHTML = armyEntryCard(a); peekFor = a.id; armyPeek.hidden = false; }
+  const r = el.getBoundingClientRect(), pw = armyPeek.offsetWidth, ph = armyPeek.offsetHeight;
+  let x = r.left - pw - 10, y = r.top + r.height / 2 - ph / 2;
+  if (x < 8) {
+    /* No room on the left (shop chips, narrow screens): above the entry, or below it. */
+    x = Math.max(8, Math.min(r.left + r.width / 2 - pw / 2, W - pw - 8));
+    y = r.top - ph - 8 >= 8 ? r.top - ph - 8 : r.bottom + 8;
+  }
+  armyPeek.style.left = Math.round(x) + 'px';
+  armyPeek.style.top = Math.round(Math.max(8, Math.min(y, H - ph - 8))) + 'px';
+  clearTimeout(peekTimer);
+  if (touch) peekTimer = setTimeout(hideArmyPeek, 2800);
+}
+function hideArmyPeek() { clearTimeout(peekTimer); armyPeek.hidden = true; peekFor = 0; }
 let tipTimer = 0, lastPtrType = 'mouse', consPeek = -1, consPeekTimer = 0;
 addEventListener('pointerdown', e => { lastPtrType = e.pointerType || 'mouse'; }, { capture: true, passive: true });
 function placeTipNear(el) {
@@ -730,14 +750,15 @@ document.addEventListener('pointerover', e => {
   const tg = e.target.closest('[data-tip]');
   if (tg) { const [h, b] = tg.dataset.tip.split('|'); tip.innerHTML = `<b>${esc(h)}</b>${esc(b || '')}`; tip.hidden = false; if (e.pointerType !== 'mouse') placeTipNear(tg); }
   const arm = e.target.closest('[data-arm]');
-  if (arm) { const a = armyById(+arm.dataset.arm); if (a) $('#pieceCard').innerHTML = armyEntryCard(a); }
+  if (arm) showArmyPeek(arm, e.pointerType !== 'mouse');
 });
 document.addEventListener('pointerout', e => {
   if (e.pointerType !== 'mouse') return;
   if (e.target.closest('[data-tip]')) tip.hidden = true;
-  if (e.target.closest('[data-arm]')) renderPieceCard();
+  const arm = e.target.closest('[data-arm]');
+  if (arm && !arm.contains(e.relatedTarget)) hideArmyPeek();
 });
-document.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && !e.target.closest('[data-tip]')) tip.hidden = true; }, { passive: true });
+document.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && !e.target.closest('[data-tip]')) tip.hidden = true; if (e.pointerType !== 'mouse' && !e.target.closest('[data-arm]')) hideArmyPeek(); }, { passive: true });
 document.addEventListener('pointermove', e => {
   if (tip.hidden || e.pointerType !== 'mouse') return;
   const x = Math.min(e.clientX + 14, W - tip.offsetWidth - 8), y = Math.min(e.clientY + 14, H - tip.offsetHeight - 8);

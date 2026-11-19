@@ -91,6 +91,7 @@ button.slot{cursor:pointer}
 #toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:30;font-family:var(--f-head);font-size:10px;line-height:1.5;padding:10px 14px;background:var(--gold);color:#2a1c05;border:3px solid var(--line);border-radius:10px;box-shadow:0 4px 0 var(--line);pointer-events:none;max-width:calc(100% - 32px);text-align:center}
 #peekBack{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:25}
 #tip{position:fixed;z-index:40;max-width:240px;background:var(--panel);border:3px solid var(--line);border-radius:8px;box-shadow:0 4px 0 var(--line);padding:8px 10px;font-size:10px;line-height:1.75;pointer-events:none}
+#armyPeek{position:fixed;z-index:39;width:236px;max-width:calc(100vw - 16px);pointer-events:none;box-shadow:0 6px 0 var(--line),0 10px 24px rgba(0,0,0,.45)}
 #tip b{display:block;font-family:var(--f-head);font-size:9px;line-height:1.5;margin-bottom:4px;color:var(--gold)}
 .float{position:fixed;z-index:15;font-family:var(--f-head);font-size:12px;pointer-events:none;text-shadow:0 2px 0 #000,2px 0 0 #000,-2px 0 0 #000,0 -2px 0 #000;animation:rise 1.2s ease-out forwards;transform:translate(-50%,-50%);white-space:nowrap}
 @keyframes rise{0%{opacity:0;margin-top:8px}15%{opacity:1}100%{opacity:0;margin-top:-56px}}
